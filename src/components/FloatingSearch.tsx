@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Search, Sparkles, X } from 'lucide-react';
-import { supabase, type Product } from '../lib/supabase';
-import { formatPrice, asset } from '../lib/format';
+import { supabase } from '../lib/supabase';
+import { formatPrice, optimizedAsset } from '../lib/format';
+import { PRODUCT_PREVIEW_COLUMNS, type ProductPreview } from '../lib/catalog';
 
 type FloatingSearchProps = {
   onNavigate: (view: string, param?: string) => void;
@@ -12,25 +13,25 @@ const quickSearches = ['لباس', 'ساعت', 'کیف', 'اکسسوری'];
 export default function FloatingSearch({ onNavigate }: FloatingSearchProps) {
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Product[]>([]);
+  const [results, setResults] = useState<ProductPreview[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const checkVisibility = () => {
-      let foundHeading: Element | null = null;
-      document.querySelectorAll('h2').forEach((h) => {
-        if (h.textContent?.includes('دسته‌بندی محصولات')) foundHeading = h;
-      });
-      if (foundHeading) {
-        const rect = (foundHeading as HTMLElement).getBoundingClientRect();
-        setVisible(rect.bottom < 0);
-      }
-    };
-    checkVisibility();
-    window.addEventListener('scroll', checkVisibility, { passive: true });
-    return () => window.removeEventListener('scroll', checkVisibility);
+    const heading = Array.from(document.querySelectorAll('h2')).find((item) =>
+      item.textContent?.includes('دسته‌بندی محصولات'),
+    );
+    if (!heading) return;
+    setVisible(heading.getBoundingClientRect().bottom < 0);
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.boundingClientRect.bottom < 0),
+      { threshold: 0 },
+    );
+    observer.observe(heading);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -44,10 +45,10 @@ export default function FloatingSearch({ onNavigate }: FloatingSearchProps) {
     debounceRef.current = setTimeout(async () => {
       const { data } = await supabase
         .from('products')
-        .select('*, category:categories(*)')
+        .select(PRODUCT_PREVIEW_COLUMNS)
         .ilike('name', `%${query.trim()}%`)
         .limit(5);
-      setResults(data || []);
+      setResults((data || []) as unknown as ProductPreview[]);
       setLoading(false);
     }, 300);
     return () => {
@@ -117,7 +118,7 @@ export default function FloatingSearch({ onNavigate }: FloatingSearchProps) {
                         className="group flex w-full items-center gap-3 rounded-xl p-2 text-right transition-colors hover:bg-amber-50 focus:bg-amber-50 focus:outline-none"
                       >
                         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-dark-50 ring-1 ring-dark-100">
-                          {p.image_url && <img src={asset(p.image_url)} alt={p.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />}
+                          {p.image_url && <img src={optimizedAsset(p.image_url, 480)} alt={p.name} width={480} height={640} loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="line-clamp-1 text-sm font-semibold text-dark-900">{p.name}</p>

@@ -1,10 +1,40 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, lazy, useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import { ArrowLeft, Star, Truck, Shield, Sparkles, RefreshCw, Shirt, Glasses, Watch, ShoppingBag, Gem, Package, X } from 'lucide-react';
-import { supabase, type Product, type BlogPost, type Category } from '../lib/supabase';
-import { seedCategories, seedProducts } from '../lib/demoSeed';
-import { formatDate, asset } from '../lib/format';
+import type { Product, Category } from '../lib/supabase';
+import {
+  getCategories,
+  getCategoryProducts,
+  getTopRatedProducts,
+} from '../lib/catalog';
+import { imageSrcSet, optimizedAsset } from '../lib/format';
 import ProductCard from '../components/ProductCard';
-import HeroSlider from '../components/HeroSlider';
+import InteractiveBoutiqueHero from '../components/InteractiveBoutiqueHero';
+import TrustMarquee from '../components/home/TrustMarquee';
+import DeferredMount from '../components/DeferredMount';
+
+const EditorialCollections = lazy(() => import('../components/home/EditorialCollections'));
+const NewArrivals = lazy(() => import('../components/home/NewArrivals'));
+const BrandStory = lazy(() => import('../components/home/BrandStory'));
+const Testimonials = lazy(() => import('../components/home/Testimonials'));
+const BlogPreview = lazy(() => import('../components/home/BlogPreview'));
+const Lookbook = lazy(() => import('../components/home/Lookbook'));
+const Faq = lazy(() => import('../components/home/Faq'));
+const Newsletter = lazy(() => import('../components/home/Newsletter'));
+
+function DeferredSection({
+  children,
+  minHeight,
+}: {
+  children: ReactNode;
+  minHeight: number;
+}) {
+  return (
+    <DeferredMount minHeight={minHeight}>
+      <Suspense fallback={<div style={{ minHeight }} aria-hidden="true" />}>{children}</Suspense>
+    </DeferredMount>
+  );
+}
+
 
 type HomeProps = {
   onNavigate: (view: string, param?: string) => void;
@@ -20,59 +50,107 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 const categoryImages: Record<string, string> = {
-  clothing: '/images/cat-clothing.jpg',
-  pants: '/images/cat-pants.jpg',
-  glasses: '/images/cat-glasses.jpg',
-  watch: '/images/cat-watch.jpg',
-  bag: '/images/cat-bag.jpg',
-  accessory: '/images/cat-accessory.jpg',
+  clothing: '/images/categories/category-clothing.jpg',
+  pants: '/images/categories/category-pants.jpg',
+  glasses: '/images/categories/category-glasses.jpg',
+  watch: '/images/categories/category-watch.jpg',
+  bag: '/images/categories/category-bag.jpg',
+  accessory: '/images/categories/category-accessory.jpg',
 };
 
-const sampleClothingProducts = seedProducts
-  .filter((product) => product.category_id === 'cat-clothing')
-  .slice(0, 8);
+const fallbackCategories: Category[] = [
+  { id: 'cat-clothing', name: 'لباس', slug: 'clothing', icon: 'shirt', created_at: '' },
+  { id: 'cat-pants', name: 'شلوار', slug: 'pants', icon: 'pants', created_at: '' },
+  { id: 'cat-glasses', name: 'عینک', slug: 'glasses', icon: 'glasses', created_at: '' },
+  { id: 'cat-watch', name: 'ساعت', slug: 'watch', icon: 'watch', created_at: '' },
+  { id: 'cat-bag', name: 'کیف', slug: 'bag', icon: 'bag', created_at: '' },
+  { id: 'cat-accessory', name: 'اکسسوری', slug: 'accessory', icon: 'gem', created_at: '' },
+];
 
 export default function Home({ onNavigate }: HomeProps) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<Category[]>(fallbackCategories);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>('clothing');
-  const [categoryProducts, setCategoryProducts] = useState<Product[]>(sampleClothingProducts);
-  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(true);
   const categorySectionRef = useRef<HTMLDivElement>(null);
+  const categoryRequestRef = useRef(0);
+  const featuredSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('products').select('*').order('rating', { ascending: false }).limit(8),
-      supabase.from('blog_posts').select('*').order('created_at', { ascending: false }).limit(3),
-      supabase.from('categories').select('*'),
-    ]).then(([p, b, c]) => {
-      const fallbackClothing = seedProducts.filter((product) => product.category_id === 'cat-clothing').slice(0, 8);
-      if (p.data?.length) setProducts(p.data as Product[]);
-      else setProducts(fallbackClothing);
-      if (b.data?.length) setPosts(b.data as BlogPost[]);
-      if (c.data?.length) setCategories(c.data as Category[]);
-      else setCategories(seedCategories);
-      setLoading(false);
+    let cancelled = false;
+    getCategories().then((liveCategories) => {
+      if (!cancelled && liveCategories.length) setCategories(liveCategories);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const fetchCategoryProducts = useCallback(async (slug: string) => {
+    const requestId = ++categoryRequestRef.current;
     setCategoryLoading(true);
-    const { data: cat } = await supabase.from('categories').select('id').eq('slug', slug).maybeSingle();
-    const fallbackProducts = seedProducts.filter((product) => product.category_id === cat?.id || product.category_id === `cat-${slug}`);
-    if (cat) {
-      const { data } = await supabase
-        .from('products')
-        .select('*, category:categories(*)')
-        .eq('category_id', cat.id)
-        .order('rating', { ascending: false });
-      setCategoryProducts((data as Product[])?.length ? data as Product[] : fallbackProducts);
-    } else {
-      setCategoryProducts(fallbackProducts);
+    try {
+      const data = await getCategoryProducts(slug);
+      if (categoryRequestRef.current !== requestId) return;
+      setCategoryProducts(data);
+    } catch {
+      if (categoryRequestRef.current === requestId) setCategoryProducts([]);
+    } finally {
+      if (categoryRequestRef.current === requestId) setCategoryLoading(false);
     }
-    setCategoryLoading(false);
+  }, []);
+
+  // Start the default category query shortly before its section is reached.
+  useEffect(() => {
+    const node = categorySectionRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      void fetchCategoryProducts('clothing');
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        void fetchCategoryProducts('clothing');
+        observer.disconnect();
+      },
+      { rootMargin: '700px 0px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [fetchCategoryProducts]);
+
+  // Featured products sit several sections down, so keep them out of LCP work.
+  useEffect(() => {
+    let cancelled = false;
+    const loadFeatured = () => {
+      getTopRatedProducts(8).then((featured) => {
+        if (cancelled) return;
+        setProducts(featured);
+        setLoading(false);
+      });
+    };
+    const node = featuredSectionRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') {
+      loadFeatured();
+      return () => {
+        cancelled = true;
+      };
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        loadFeatured();
+        observer.disconnect();
+      },
+      { rootMargin: '900px 0px' },
+    );
+    observer.observe(node);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, []);
 
   const handleCategoryClick = (slug: string) => {
@@ -89,10 +167,13 @@ export default function Home({ onNavigate }: HomeProps) {
   return (
     <div>
       {/* Hero Slider */}
-      <HeroSlider onNavigate={onNavigate} />
+      <InteractiveBoutiqueHero onNavigate={onNavigate} />
+
+      {/* Trust marquee */}
+      <TrustMarquee />
 
       {/* Features bar */}
-      <section className="relative z-20 mx-auto -mt-5 max-w-7xl px-4 sm:-mt-8 sm:px-6 lg:px-8">
+      <section className="relative z-20 mx-auto mt-10 max-w-7xl px-4 sm:mt-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           {[
             { icon: Truck, title: 'ارسال رایگان', desc: 'برای سفارش‌های بالای ۵۰۰ هزار تومان' },
@@ -140,8 +221,14 @@ export default function Home({ onNavigate }: HomeProps) {
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-dark-50">
                   <img
-                    src={asset(categoryImages[cat.slug])}
+                    src={optimizedAsset(categoryImages[cat.slug], 480)}
+                    srcSet={imageSrcSet(categoryImages[cat.slug], [480, 720])}
+                    sizes="(min-width: 1024px) 190px, (min-width: 640px) 33vw, 50vw"
                     alt={cat.name}
+                    width={480}
+                    height={640}
+                    loading="lazy"
+                    decoding="async"
                     className={`h-full w-full object-cover transition-transform duration-500 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-dark-950/70 to-transparent" />
@@ -183,7 +270,6 @@ export default function Home({ onNavigate }: HomeProps) {
               <button
                 onClick={() => {
                   setActiveCategory('clothing');
-                  setCategoryProducts(sampleClothingProducts);
                   fetchCategoryProducts('clothing');
                 }}
                 className="flex w-fit items-center gap-2 rounded-xl border border-dark-200 bg-white px-4 py-2 text-sm font-medium text-dark-700 transition-all hover:border-amber-300 hover:text-amber-700"
@@ -218,8 +304,18 @@ export default function Home({ onNavigate }: HomeProps) {
         </section>
       )}
 
+      {/* Editorial collections */}
+      <DeferredSection minHeight={780}>
+        <EditorialCollections onNavigate={onNavigate} />
+      </DeferredSection>
+
+      {/* New arrivals */}
+      <DeferredSection minHeight={620}>
+        <NewArrivals onNavigate={onNavigate} />
+      </DeferredSection>
+
       {/* Featured products */}
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <section ref={featuredSectionRef} className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="mb-1 text-2xl font-bold text-dark-900 sm:text-3xl">پرفروش‌ترین محصولات</h2>
@@ -307,51 +403,35 @@ export default function Home({ onNavigate }: HomeProps) {
         </div>
       </section>
 
+      {/* Brand story */}
+      <DeferredSection minHeight={720}>
+        <BrandStory onNavigate={onNavigate} />
+      </DeferredSection>
+
+      {/* Testimonials */}
+      <DeferredSection minHeight={760}>
+        <Testimonials onNavigate={onNavigate} />
+      </DeferredSection>
+
       {/* Blog preview */}
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <div className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="mb-1 text-2xl font-bold text-dark-900 sm:text-3xl">آخرین مقالات</h2>
-            <p className="text-dark-500">راهنمای مد و استایل</p>
-          </div>
-          <button
-            onClick={() => onNavigate('blog')}
-            className="group flex w-fit items-center gap-2 text-sm font-medium text-amber-600 hover:text-amber-700 sm:text-base"
-          >
-            مشاهده همه
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {posts.map((post, i) => (
-            <button
-              key={post.id}
-              onClick={() => onNavigate('blog-post', post.slug)}
-              className="group text-right overflow-hidden rounded-2xl border border-dark-100 bg-white transition-all hover:shadow-xl hover:-translate-y-1 animate-fade-in-up"
-              style={{ animationDelay: `${i * 100}ms` }}
-            >
-              <div className="aspect-video overflow-hidden bg-dark-50">
-                <img
-                  src={asset(post.image_url)}
-                  alt={post.title}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                />
-              </div>
-              <div className="p-5">
-                <div className="flex items-center gap-2 text-xs text-dark-400 mb-2">
-                  <span>{formatDate(post.created_at)}</span>
-                  <span>•</span>
-                  <span>{post.author}</span>
-                </div>
-                <h3 className="font-bold text-dark-900 mb-2 line-clamp-2 group-hover:text-amber-700 transition-colors">
-                  {post.title}
-                </h3>
-                <p className="text-sm text-dark-500 line-clamp-2">{post.excerpt}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+      <DeferredSection minHeight={560}>
+        <BlogPreview onNavigate={onNavigate} />
+      </DeferredSection>
+
+      {/* Lookbook */}
+      <DeferredSection minHeight={760}>
+        <Lookbook onNavigate={onNavigate} />
+      </DeferredSection>
+
+      {/* FAQ */}
+      <DeferredSection minHeight={620}>
+        <Faq />
+      </DeferredSection>
+
+      {/* Newsletter / Modara Club */}
+      <DeferredSection minHeight={520}>
+        <Newsletter />
+      </DeferredSection>
     </div>
   );
 }

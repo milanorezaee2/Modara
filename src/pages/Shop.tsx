@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Search, SlidersHorizontal, Star, X } from 'lucide-react';
 import { supabase, type Product, type Category } from '../lib/supabase';
-import { seedCategories, seedProducts } from '../lib/demoSeed';
+import { PRODUCT_CARD_COLUMNS, getCategories } from '../lib/catalog';
 import ProductCard from '../components/ProductCard';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { formatPrice } from '../lib/format';
@@ -44,14 +44,13 @@ export default function Shop({ onNavigate, initialCategory }: ShopProps) {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const [{ data: productData }, { data: categoryData }] = await Promise.all([
-        supabase.from('products').select('*, category:categories(*)'),
-        supabase.from('categories').select('*').order('name', { ascending: true }),
+      const [{ data: productData }, categoryData] = await Promise.all([
+        supabase.from('products').select(PRODUCT_CARD_COLUMNS),
+        getCategories(true),
       ]);
       if (cancelled) return;
-      const seededClothing = seedProducts.filter((product) => product.category_id === 'cat-clothing');
-      setProducts((productData as Product[])?.length ? productData as Product[] : seededClothing);
-      setCategories((categoryData as Category[])?.length ? categoryData as Category[] : seedCategories);
+      setProducts((productData as Product[]) ?? []);
+      setCategories(categoryData);
       setLoading(false);
     };
     void load();

@@ -5,8 +5,22 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Beiruti', 'sans-serif'],
+        display: ['Cinzel', 'serif'],
       },
       colors: {
+        gold: {
+          50: '#fbf7ec',
+          100: '#f6edd3',
+          200: '#eddaa6',
+          300: '#e2c279',
+          400: '#d5ab55',
+          500: '#c0913f',
+          600: '#a67831',
+          700: '#855d28',
+          800: '#6f4d26',
+          900: '#5e4123',
+          950: '#35230f',
+        },
         primary: {
           50: '#eef9ff',
           100: '#d9f1ff',

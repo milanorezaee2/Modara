@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Star, ShoppingCart, Truck, Shield, RefreshCw, Check, MessageSquare, Send } from 'lucide-react';
+import { ArrowLeft, Star, ShoppingCart, Truck, Shield, RefreshCw, Check, MessageSquare, Send } from 'lucide-react';
 import { supabase, type Product, type Review } from '../lib/supabase';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { formatPrice, formatDate, asset } from '../lib/format';
+import { formatPrice, formatDate, imageSrcSet, optimizedAsset } from '../lib/format';
+import {
+  PRODUCT_CARD_COLUMNS,
+  PRODUCT_PREVIEW_COLUMNS,
+  type ProductPreview,
+} from '../lib/catalog';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,10 +17,15 @@ type ProductDetailProps = {
   onOpenAuth: () => void;
 };
 
+type ProductReview = Pick<
+  Review,
+  'id' | 'product_id' | 'name' | 'rating' | 'comment' | 'created_at'
+>;
+
 export default function ProductDetail({ slug, onNavigate, onOpenAuth }: ProductDetailProps) {
   const [product, setProduct] = useState<Product | null>(null);
-  const [related, setRelated] = useState<Product[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [related, setRelated] = useState<ProductPreview[]>([]);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -33,7 +43,7 @@ export default function ProductDetail({ slug, onNavigate, onOpenAuth }: ProductD
     setLoading(true);
     supabase
       .from('products')
-      .select('*, category:categories(*)')
+      .select(PRODUCT_CARD_COLUMNS)
       .eq('slug', slug)
       .maybeSingle()
       .then(({ data }) => {
@@ -41,18 +51,18 @@ export default function ProductDetail({ slug, onNavigate, onOpenAuth }: ProductD
         if (data) {
           supabase
             .from('products')
-            .select('*')
+            .select(PRODUCT_PREVIEW_COLUMNS)
             .neq('id', data.id)
             .eq('category_id', data.category_id || '')
             .limit(4)
-            .then(({ data: rel }) => setRelated(rel || []));
+            .then(({ data: rel }) => setRelated((rel || []) as unknown as ProductPreview[]));
 
           supabase
             .from('reviews')
-            .select('*')
+            .select('id,product_id,name,rating,comment,created_at')
             .eq('product_id', data.id)
             .order('created_at', { ascending: false })
-            .then(({ data: rev }) => setReviews(rev || []));
+            .then(({ data: rev }) => setReviews((rev || []) as unknown as ProductReview[]));
         }
         setLoading(false);
       });
@@ -151,8 +161,14 @@ export default function ProductDetail({ slug, onNavigate, onOpenAuth }: ProductD
             <div className="lg:sticky lg:top-24">
               <div className="relative aspect-square overflow-hidden rounded-2xl border border-dark-100 bg-white shadow-lg">
                 <img
-                  src={asset(product.image_url)}
+                  src={optimizedAsset(product.image_url, 720)}
+                  srcSet={imageSrcSet(product.image_url, [480, 720])}
+                  sizes="(min-width: 1024px) 50vw, 100vw"
                   alt={product.name}
+                  width={720}
+                  height={960}
+                  fetchPriority="high"
+                  decoding="async"
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute top-4 right-4 flex items-center gap-1 rounded-full bg-dark-950/70 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm">
@@ -390,18 +406,74 @@ export default function ProductDetail({ slug, onNavigate, onOpenAuth }: ProductD
   );
 }
 
-function ProductCardLite({ product }: { product: Product }) {
-  const imageUrl = asset(product.image_url);
+function ProductCardLite({ product }: { product: ProductPreview }) {
+  const imageUrl = optimizedAsset(product.image_url, 480);
+  const imageSet = imageSrcSet(product.image_url, [480, 720]);
+  const faNumber = (value: number) => new Intl.NumberFormat('fa-IR').format(value);
 
   return (
-    <div className="group cursor-pointer overflow-hidden rounded-2xl border border-dark-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative aspect-square overflow-hidden bg-dark-50">
-        <img src={imageUrl} alt={product.name} className="h-full w-full object-cover" />
+    <article className="group relative h-full cursor-pointer overflow-hidden rounded-[1.75rem] bg-[#fffdf9] shadow-[0_2px_14px_rgba(33,26,18,0.05)] ring-1 ring-[#211a12]/[0.07] transition-all duration-500 hover:-translate-y-1.5 hover:shadow-[0_32px_64px_-24px_rgba(94,65,35,0.38)] hover:ring-gold-500/40">
+      <span
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 z-20 h-[3px] origin-right scale-x-0 bg-gradient-to-l from-gold-300 via-gold-500 to-gold-700 transition-transform duration-700 ease-out group-hover:scale-x-100"
+      />
+      <div className="relative aspect-[3/4] overflow-hidden bg-[#f3ede0]">
+        <img
+          src={imageUrl}
+          srcSet={imageSet}
+          sizes="(min-width: 1024px) 300px, (min-width: 640px) 33vw, 50vw"
+          alt={product.name}
+          width={480}
+          height={640}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-110"
+        />
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#120d08]/50 via-[#120d08]/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+        />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 -translate-x-[190%] -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-1000 ease-out group-hover:translate-x-[430%]"
+        />
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-full border border-white/20 bg-[#120d08]/45 px-2.5 py-1 text-xs font-bold text-white shadow-lg backdrop-blur-md">
+          <Star className="h-3.5 w-3.5 fill-gold-300 text-gold-300" />
+          {faNumber(product.rating)}
+        </div>
       </div>
-      <div className="p-3">
-        <h3 className="mb-1 line-clamp-1 text-sm font-semibold text-dark-900">{product.name}</h3>
-        <p className="text-sm font-bold text-amber-700">{formatPrice(product.price)}</p>
+
+      <div className="p-4 sm:p-5">
+        <span
+          dir="ltr"
+          aria-hidden="true"
+          className="font-display text-[8px] font-semibold tracking-[0.34em] text-[#211a12]/35"
+        >
+          MODARA
+        </span>
+        <h3 className="mt-1.5 line-clamp-1 text-sm font-extrabold text-[#211a12] transition-colors duration-300 group-hover:text-gold-700 sm:text-[15px]">
+          {product.name}
+        </h3>
+        <div aria-hidden="true" className="my-3.5 flex items-center gap-2">
+          <span className="h-px flex-1 bg-gradient-to-l from-gold-500/50 to-transparent" />
+          <span className="h-1.5 w-1.5 rotate-45 bg-gold-500" />
+          <span className="h-px w-5 bg-gold-500/30" />
+        </div>
+        <div className="flex items-end justify-between gap-3">
+          <p className="flex items-baseline gap-1.5 leading-none">
+            <span className="text-base font-black tracking-tight text-[#211a12] sm:text-lg">
+              {faNumber(product.price)}
+            </span>
+            <span className="text-[11px] font-bold text-gold-700">تومان</span>
+          </p>
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-50 text-gold-700 ring-1 ring-gold-500/25 transition-all duration-300 group-hover:bg-[#171208] group-hover:text-gold-200"
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5" />
+          </span>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
