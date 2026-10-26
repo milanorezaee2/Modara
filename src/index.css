@@ -89,28 +89,6 @@
     unicode-bidi: plaintext;
   }
 
-  .hero-video {
-    display: block;
-    backface-visibility: hidden;
-    transform: translateZ(0);
-  }
-
-  .hero-draggable {
-    position: relative;
-    width: fit-content;
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-    transition: filter 160ms ease;
-  }
-
-  .hero-draggable:hover {
-    filter: brightness(1.08) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.18));
-  }
-
-  .hero-draggable:active {
-    cursor: grabbing;
-  }
 }
 
 /* Custom scrollbar */
@@ -132,30 +110,32 @@
   background: #b8a48c;
 }
 
-/* Hero animated background */
-.hero-mesh {
-  background-color: #0f1320;
-  background-image:
-    radial-gradient(at 20% 30%, rgba(245, 158, 11, 0.3) 0%, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(251, 146, 60, 0.2) 0%, transparent 50%),
-    radial-gradient(at 60% 80%, rgba(217, 119, 6, 0.15) 0%, transparent 50%),
-    radial-gradient(at 10% 90%, rgba(28, 25, 20, 0.6) 0%, transparent 50%);
-  background-size: 200% 200%;
-  animation: gradientShift 12s ease infinite;
+/* Luxury hero — slide progress + scroll cue */
+.hero-progress-fill {
+  transform-origin: right center;
+  animation-name: heroProgress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+@keyframes heroProgress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.hero-scroll-dot {
+  animation: heroScrollDot 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes heroScrollDot {
+  0% { transform: translateY(-100%); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translateY(320%); opacity: 0; }
 }
 
 @media (max-width: 767px) {
   html {
     scroll-behavior: auto;
-  }
-
-  .hero-video {
-    object-position: 56% center;
   }
 }
 
@@ -164,11 +144,8 @@
     scroll-behavior: auto;
   }
 
-  .hero-video {
-    transform: none;
-    will-change: auto !important;
-  }
-
+  .hero-progress-fill,
+  .hero-scroll-dot,
   .animate-bounce,
   .animate-float,
   .animate-shimmer {
@@ -224,5 +201,30 @@
   .promo-poster-scan,
   .promo-poster-float {
     animation: none !important;
+  }
+}
+
+/* Mobile GPUs pay heavily for backdrop filters, especially on long pages with
+   many cards. The translucent surfaces still read correctly without blur. */
+@media (max-width: 767px) {
+  .backdrop-blur,
+  .backdrop-blur-sm,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

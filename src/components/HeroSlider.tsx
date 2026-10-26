@@ -1,301 +1,577 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { ArrowLeft, ChevronDown, Clock3, Gem, Glasses, ShoppingBag, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion, type Variants } from 'framer-motion';
+import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { asset } from '../lib/format';
 
 type HeroSliderProps = {
   onNavigate: (view: string, param?: string) => void;
 };
 
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+type SlideTheme = 'light' | 'dark';
 
-type DragPosition = { x: number; y: number };
-type DragState = DragPosition & { id: string; pointerId: number; moved: boolean };
+type Slide = {
+  id: string;
+  image: string;
+  alt: string;
+  theme: SlideTheme;
+  eyebrow: string;
+  eyebrowEn: string;
+  titleLead: string;
+  titleAccent: string;
+  description: string;
+  cta: string;
+  category: string;
+  navLabel: string;
+  objectClass: string;
+};
 
-const DRAG_STORAGE_KEY = 'modara-hero-drag-positions';
+const AUTOPLAY_MS = 6500;
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const HERO_THEME_EVENT = 'modara:hero-theme';
+
+const slides: Slide[] = [
+  {
+    id: 'women',
+    image: '/images/hero-lux-1.jpg',
+    alt: 'مدل زن با پالتوی بلند کرم در معماری سنگی مینیمال',
+    theme: 'light',
+    eyebrow: 'کالکشن پاییز ـ زمستان ۱۴۰۵',
+    eyebrowEn: 'AW26 · WOMEN',
+    titleLead: 'ظرافت،',
+    titleAccent: 'امضای توست',
+    description: 'کالکشن جدید پوشاک مُدارا؛ برش‌هایی دقیق، پارچه‌هایی نجیب و حضوری که در خاطر می‌ماند.',
+    cta: 'مشاهده کالکشن پوشاک',
+    category: 'clothing',
+    navLabel: 'پوشاک زنانه',
+    objectClass: 'object-[24%_16%] sm:object-center',
+  },
+  {
+    id: 'men',
+    image: '/images/hero-lux-2.jpg',
+    alt: 'مردی با کت‌وشلوار رسمی و ساعت لوکس در بوتيک تیره و مجلل',
+    theme: 'dark',
+    eyebrow: 'کالکشن مردانه مُدارا',
+    eyebrowEn: 'AW26 · MEN & TIMEPIECES',
+    titleLead: 'وقار،',
+    titleAccent: 'در جزئیات است',
+    description: 'ساعت‌ها و استایل رسمی مردانه؛ جایی که دقتِ ساخت، به امضای شخصیت شما تبدیل می‌شود.',
+    cta: 'مشاهده ساعت‌های لوکس',
+    category: 'watch',
+    navLabel: 'مردانه و ساعت',
+    objectClass: 'object-[22%_16%] sm:object-center',
+  },
+  {
+    id: 'accessories',
+    image: '/images/hero-lux-3.jpg',
+    alt: 'کیف چرم لوکس، عینک طلایی و ساعت روی پایه سنگی تراورتن',
+    theme: 'light',
+    eyebrow: 'اکسسوری‌های منتخب فصل',
+    eyebrowEn: 'THE ACCESSORIES EDIT',
+    titleLead: 'جزئیاتِ',
+    titleAccent: 'ماندگار',
+    description: 'کیف‌های چرمی، عینک و اکسسوری‌های برگزیده؛ قطعه‌هایی کوچک، با تأثیری بزرگ و همیشگی.',
+    cta: 'مشاهده اکسسوری‌ها',
+    category: 'accessory',
+    navLabel: 'کیف و اکسسوری',
+    objectClass: 'object-[20%_24%] sm:object-center',
+  },
+];
+
+const stats = [
+  { value: '۱۲۰+', label: 'برند منتخب' },
+  { value: '۹۸٪', label: 'رضایت مشتریان' },
+  { value: '۷ روز', label: 'ضمانت بازگشت' },
+];
+
+const themeStyles: Record<
+  SlideTheme,
+  {
+    text: string;
+    eyebrow: string;
+    latin: string;
+    accent: string;
+    description: string;
+    ornament: string;
+    primary: string;
+    primaryBadge: string;
+    secondary: string;
+    statBorder: string;
+    statLabel: string;
+    frame: string;
+    scrimDesktop: string;
+    scrimMobile: string;
+    navTrack: string;
+    arrow: string;
+    watermarkStroke: string;
+  }
+> = {
+  light: {
+    text: 'text-[#211a12]',
+    eyebrow: 'text-gold-700',
+    latin: 'text-[#211a12]/45',
+    accent:
+      'bg-gradient-to-l from-[#7c5518] via-[#bd9448] to-[#8a611f] bg-clip-text text-transparent',
+    description: 'text-[#211a12]/70',
+    ornament: 'bg-gold-600',
+    primary: 'bg-[#17120b] text-[#f7efdc] shadow-[0_18px_40px_-16px_rgba(23,18,11,0.55)]',
+    primaryBadge: 'bg-gold-500 text-[#171208] group-hover:bg-[#171208] group-hover:text-gold-300',
+    secondary:
+      'border-[#211a12]/25 bg-white/10 text-[#211a12] hover:border-gold-600/70 hover:bg-gold-500/10 hover:text-gold-800',
+    statBorder: 'border-[#211a12]/10',
+    statLabel: 'text-[#211a12]/55',
+    frame: 'border-[#211a12]/15',
+    scrimDesktop:
+      'bg-[linear-gradient(to_left,rgba(250,246,238,0.95)_0%,rgba(250,246,238,0.74)_34%,rgba(250,246,238,0.20)_58%,transparent_78%)]',
+    scrimMobile:
+      'bg-[linear-gradient(to_top,rgba(250,246,238,0.98)_0%,rgba(250,246,238,0.90)_40%,rgba(250,246,238,0.28)_66%,transparent_86%)]',
+    navTrack: 'bg-[#211a12]/20',
+    arrow:
+      'border-[#211a12]/20 bg-white/25 text-[#211a12] hover:border-gold-600 hover:bg-gold-500 hover:text-white',
+    watermarkStroke: 'rgba(101,78,38,0.16)',
+  },
+  dark: {
+    text: 'text-[#f7f1e5]',
+    eyebrow: 'text-gold-300',
+    latin: 'text-white/45',
+    accent:
+      'bg-gradient-to-l from-[#f0d9a0] via-[#d9b968] to-[#b98d3e] bg-clip-text text-transparent',
+    description: 'text-white/70',
+    ornament: 'bg-gold-400',
+    primary: 'bg-[#f3ead6] text-[#1a150c] shadow-[0_18px_40px_-16px_rgba(0,0,0,0.7)]',
+    primaryBadge: 'bg-[#171208] text-gold-300 group-hover:bg-[#171208] group-hover:text-gold-300',
+    secondary:
+      'border-white/35 bg-white/5 text-white hover:border-gold-300/80 hover:bg-gold-400/10 hover:text-gold-200',
+    statBorder: 'border-white/15',
+    statLabel: 'text-white/55',
+    frame: 'border-white/20',
+    scrimDesktop:
+      'bg-[linear-gradient(to_left,rgba(12,9,6,0.90)_0%,rgba(12,9,6,0.64)_36%,rgba(12,9,6,0.20)_62%,transparent_84%)]',
+    scrimMobile:
+      'bg-[linear-gradient(to_top,rgba(12,9,6,0.97)_0%,rgba(12,9,6,0.86)_42%,rgba(12,9,6,0.25)_68%,transparent_88%)]',
+    navTrack: 'bg-white/25',
+    arrow:
+      'border-white/25 bg-black/20 text-white hover:border-gold-400 hover:bg-gold-500 hover:text-white',
+    watermarkStroke: 'rgba(232,201,122,0.15)',
+  },
+};
+
+const contentVariants: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.35 } },
+  exit: { opacity: 0, y: -18, transition: { duration: 0.35, ease: EASE } },
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 38 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.9, ease: EASE } },
+};
+
+const pad = (n: number) => String(n).padStart(2, '0');
 
 export default function HeroSlider({ onNavigate }: HeroSliderProps) {
+  const [active, setActive] = useState(0);
+  const [hoverPaused, setHoverPaused] = useState(false);
+  const [tabHidden, setTabHidden] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+  const paused = hoverPaused || tabHidden;
+
   const sectionRef = useRef<HTMLElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const frameRef = useRef<number | null>(null);
-  const progressRef = useRef(0);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [videoReady, setVideoReady] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  const [dragPositions, setDragPositions] = useState<Record<string, DragPosition>>(() => {
-    if (typeof window === 'undefined') return {};
-    try {
-      const parsed = JSON.parse(window.localStorage.getItem(DRAG_STORAGE_KEY) || '{}') as Record<string, DragPosition>;
-      return Object.fromEntries(Object.entries(parsed).filter(([, position]) => Number.isFinite(position?.x) && Number.isFinite(position?.y)));
-    } catch {
-      return {};
-    }
-  });
-  const dragStateRef = useRef<DragState | null>(null);
-  const suppressClickRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const startedAtRef = useRef(0);
+  const remainingRef = useRef(AUTOPLAY_MS);
+  const touchXRef = useRef<number | null>(null);
+  const lastThemeRef = useRef<string>('');
 
+  const slide = slides[active];
+  const styles = themeStyles[slide.theme];
+  const isLight = slide.theme === 'light';
+
+  const goTo = useCallback((index: number) => {
+    setActive(((index % slides.length) + slides.length) % slides.length);
+  }, []);
+  const goNext = useCallback(() => setActive((p) => (p + 1) % slides.length), []);
+  const goPrev = useCallback(
+    () => setActive((p) => (p - 1 + slides.length) % slides.length),
+    [],
+  );
+
+  /* Preload campaign imagery for seamless crossfades */
   useEffect(() => {
-    const mobileQuery = window.matchMedia('(max-width: 767px)');
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const updateMediaPreferences = () => {
-      setIsMobile(mobileQuery.matches);
-      setPrefersReducedMotion(motionQuery.matches);
-    };
-
-    updateMediaPreferences();
-    mobileQuery.addEventListener('change', updateMediaPreferences);
-    motionQuery.addEventListener('change', updateMediaPreferences);
-    return () => {
-      mobileQuery.removeEventListener('change', updateMediaPreferences);
-      motionQuery.removeEventListener('change', updateMediaPreferences);
-    };
+    slides.forEach((s) => {
+      const img = new Image();
+      img.src = asset(s.image);
+    });
   }, []);
 
-  const videoSrc = isMobile
-    ? asset('/videos/hero-woman-polishing-shoes-mobile.mp4')
-    : asset('/videos/hero-woman-polishing-shoes.mp4');
+  /* ---------- Autoplay (with true pause / resume) ---------- */
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
 
-  const syncToScroll = useCallback(() => {
-    if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+  const startTimer = useCallback(() => {
+    clearTimer();
+    if (prefersReducedMotion) return;
+    startedAtRef.current = Date.now();
+    timerRef.current = window.setTimeout(goNext, remainingRef.current);
+  }, [clearTimer, goNext, prefersReducedMotion]);
 
-    frameRef.current = window.requestAnimationFrame(() => {
-      const section = sectionRef.current;
-      if (!section) return;
+  useEffect(() => {
+    remainingRef.current = AUTOPLAY_MS;
+    if (!paused) startTimer();
+    return clearTimer;
+  }, [active, startTimer, clearTimer]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      const rect = section.getBoundingClientRect();
-      const scrollDistance = Math.max(section.offsetHeight - window.innerHeight, 1);
-      const progress = clamp(-rect.top / scrollDistance, 0, 1);
-      progressRef.current = progress;
-      setScrollProgress(progress);
-
-      const video = videoRef.current;
-      if (!prefersReducedMotion && video && Number.isFinite(video.duration) && video.duration > 0) {
-        const targetTime = progress * video.duration;
-        if (Math.abs(video.currentTime - targetTime) > 0.06) {
-          if (typeof video.fastSeek === 'function') video.fastSeek(targetTime);
-          else video.currentTime = targetTime;
-        }
+  useEffect(() => {
+    if (paused) {
+      if (timerRef.current !== null) {
+        remainingRef.current = Math.max(
+          remainingRef.current - (Date.now() - startedAtRef.current),
+          800,
+        );
+        clearTimer();
       }
-    });
-  }, [prefersReducedMotion]);
+    } else {
+      startTimer();
+    }
+  }, [paused, startTimer, clearTimer]);
 
   useEffect(() => {
-    syncToScroll();
-    window.addEventListener('scroll', syncToScroll, { passive: true });
-    window.addEventListener('resize', syncToScroll);
+    const onVisibility = () => setTabHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
-    return () => {
-      window.removeEventListener('scroll', syncToScroll);
-      window.removeEventListener('resize', syncToScroll);
-      if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+  /* ---------- Sync header colour with the active slide ---------- */
+  useEffect(() => {
+    const emitTheme = () => {
+      const el = sectionRef.current;
+      const inHero = el ? el.getBoundingClientRect().bottom > 88 : true;
+      const theme = inHero ? slides[active].theme : 'light';
+      if (lastThemeRef.current !== theme) {
+        lastThemeRef.current = theme;
+        window.dispatchEvent(new CustomEvent(HERO_THEME_EVENT, { detail: theme }));
+      }
     };
-  }, [syncToScroll]);
-
-  const handleVideoMetadata = () => {
-    const video = videoRef.current;
-    if (!video || !Number.isFinite(video.duration) || video.duration <= 0) return;
-    video.currentTime = prefersReducedMotion ? 0 : progressRef.current * video.duration;
-    setVideoReady(true);
-  };
-
-  const handleVideoCanPlay = () => {
-    const video = videoRef.current;
-    if (!video || prefersReducedMotion) return;
-    void video.play().catch(() => {
-      // Muted autoplay is normally allowed; the poster remains the graceful fallback if a browser blocks it.
-    });
-  };
-
-  const progressPercent = Math.round(scrollProgress * 100);
-  const contentShift = scrollProgress * (isMobile ? -12 : -28);
-  const detailOpacity = clamp(0.35 + scrollProgress * 0.65, 0, 1);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(DRAG_STORAGE_KEY, JSON.stringify(dragPositions));
-    } catch {
-      // Drag positions are a visual preference; failure to persist them is harmless.
-    }
-  }, [dragPositions]);
-
-  const getDragPosition = (id: string): DragPosition => dragPositions[id] || { x: 0, y: 0 };
-
-  const handlePointerDown = (id: string, event: ReactPointerEvent<HTMLDivElement>) => {
-    const current = getDragPosition(id);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragStateRef.current = { id, pointerId: event.pointerId, moved: false, x: event.clientX - current.x, y: event.clientY - current.y };
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragStateRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const nextX = clamp(event.clientX - drag.x, isMobile ? -96 : -260, isMobile ? 96 : 260);
-    const nextY = clamp(event.clientY - drag.y, isMobile ? -110 : -220, isMobile ? 110 : 220);
-    if (Math.abs(nextX - (dragPositions[drag.id]?.x || 0)) > 3 || Math.abs(nextY - (dragPositions[drag.id]?.y || 0)) > 3) {
-      drag.moved = true;
-      suppressClickRef.current = true;
-      setDragPositions((previous) => {
-        const next = { ...previous, [drag.id]: { x: nextX, y: nextY } };
-        try {
-          window.localStorage.setItem(DRAG_STORAGE_KEY, JSON.stringify(next));
-        } catch {
-          // The in-memory state still preserves the position for the current session.
-        }
-        return next;
-      });
-    }
-  };
-
-  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragStateRef.current;
-    if (drag?.pointerId === event.pointerId) {
-      dragStateRef.current = null;
-      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
-    }
-  };
-
-  const makeDraggable = (id: string, children: ReactNode, className = '') => {
-    const position = getDragPosition(id);
-    return (
-      <div
-        className={`hero-draggable ${className}`}
-        style={{ transform: `translate3d(${position.x}px, ${position.y}px, 0)` }}
-        onPointerDown={(event) => handlePointerDown(id, event)}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onClick={(event) => {
-          if (suppressClickRef.current) {
-            event.preventDefault();
-            event.stopPropagation();
-          }
-        }}
-        title="برای جابه‌جایی کلیک کنید و بکشید"
-      >
-        {children}
-      </div>
-    );
-  };
+    emitTheme();
+    window.addEventListener('scroll', emitTheme, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', emitTheme);
+      window.dispatchEvent(new CustomEvent(HERO_THEME_EVENT, { detail: 'light' }));
+    };
+  }, [active]);
 
   return (
-    <section ref={sectionRef} className="relative h-[135vh] min-h-[780px] w-full bg-dark-950 sm:h-[220vh] sm:min-h-[1420px]" aria-label="کمپین ویدئویی کالکشن جدید مُدارا">
-      <div className="sticky top-0 h-[100svh] min-h-[620px] w-full overflow-hidden bg-dark-950">
-        <video
-          key={videoSrc}
-          ref={videoRef}
-          className="hero-video absolute inset-0 h-full w-full object-cover"
-          style={{
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            transform: 'translateZ(0)',
-            touchAction: 'pan-y',
-            willChange: prefersReducedMotion ? 'auto' : 'transform',
-            filter: isMobile ? 'brightness(1.08) saturate(1.04)' : 'brightness(1.12) saturate(1.05)',
+    <section
+      ref={sectionRef}
+      dir="rtl"
+      tabIndex={0}
+      aria-roledescription="carousel"
+      aria-label="کمپین‌های مُدارا"
+      className={`relative h-[100svh] min-h-[620px] w-full overflow-hidden bg-[#14100c] outline-none transition-colors duration-700 ${styles.text}`}
+      onFocus={() => setHoverPaused(true)}
+      onBlur={() => setHoverPaused(false)}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowLeft') goNext();
+        if (event.key === 'ArrowRight') goPrev();
+      }}
+      onTouchStart={(event) => {
+        touchXRef.current = event.touches[0]?.clientX ?? null;
+        setHoverPaused(true);
+      }}
+      onTouchEnd={(event) => {
+        const startX = touchXRef.current;
+        const endX = event.changedTouches[0]?.clientX;
+        touchXRef.current = null;
+        setHoverPaused(false);
+        if (startX === null || endX === undefined) return;
+        const delta = endX - startX;
+        if (Math.abs(delta) > 48) {
+          if (delta < 0) goNext();
+          else goPrev();
+        }
+      }}
+    >
+      {/* Campaign imagery */}
+      <AnimatePresence>
+        <motion.img
+          key={slide.id}
+          src={asset(slide.image)}
+          alt={slide.alt}
+          initial={{ opacity: 0, scale: prefersReducedMotion ? 1 : 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{
+            opacity: { duration: 1.2, ease: EASE },
+            scale: {
+              duration: prefersReducedMotion ? 0 : AUTOPLAY_MS / 1000 + 1.6,
+              ease: 'linear',
+            },
           }}
-          poster={asset('/images/hero-woman-polishing-poster.jpg')}
-          autoPlay={!prefersReducedMotion}
-          loop
-          muted
-          playsInline
-          preload={prefersReducedMotion ? 'metadata' : isMobile ? 'metadata' : 'auto'}
-          disablePictureInPicture
-          aria-label="ویدئوی تبلیغاتی مراقبت از کفش و اکسسوری مُدارا"
-          onLoadedMetadata={handleVideoMetadata}
-          onCanPlay={handleVideoCanPlay}
-          onError={() => setVideoReady(false)}
+          className={`absolute inset-0 h-full w-full object-cover will-change-transform ${slide.objectClass}`}
+          draggable={false}
+        />
+      </AnimatePresence>
+
+      {/* Legibility scrims (theme-aware) */}
+      <AnimatePresence>
+        <motion.div
+          key={`scrim-${slide.id}`}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1, ease: EASE }}
+          className="pointer-events-none absolute inset-0"
         >
-          <source src={videoSrc} type="video/mp4" />
-          مرورگر شما از پخش ویدئو پشتیبانی نمی‌کند.
-        </video>
+          <div className={`absolute inset-0 hidden sm:block ${styles.scrimDesktop}`} />
+          <div className={`absolute inset-0 sm:hidden ${styles.scrimMobile}`} />
+        </motion.div>
+      </AnimatePresence>
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(245,158,11,0.11),transparent_34%),linear-gradient(100deg,rgba(10,10,12,0.04),rgba(10,10,12,0.48))]" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-dark-950/65 via-dark-950/6 to-transparent" />
-        <div className="pointer-events-none absolute inset-0 opacity-25 mix-blend-screen" style={{ background: 'linear-gradient(115deg, transparent 24%, rgba(245,158,11,0.12) 48%, transparent 72%)' }} />
+      {/* Cinematic film grain */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-[3] opacity-[0.05] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+        }}
+      />
 
-        <div className="absolute inset-0 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" dir="rtl">
-          <div
-            className="flex h-full max-w-2xl items-center pb-24 pt-20 transition-transform duration-100 sm:pb-20 sm:pt-24"
-            style={{ transform: `translate3d(0, ${contentShift}px, 0)` }}
+      {/* Giant outlined brand watermark */}
+      <motion.div
+        aria-hidden="true"
+        dir="ltr"
+        animate={{ x: active * -16 }}
+        transition={{ duration: 1.4, ease: EASE }}
+        className="pointer-events-none absolute -bottom-4 left-0 z-[2] translate-y-[24%] select-none font-display text-[20vw] font-semibold leading-none tracking-[0.06em]"
+        style={{ color: 'transparent', WebkitTextStroke: `1px ${styles.watermarkStroke}` }}
+      >
+        MODARA
+      </motion.div>
+
+      {/* Hairline editorial frame */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-x-3 bottom-3 top-[4.25rem] z-[5] border transition-colors duration-700 sm:inset-x-5 sm:bottom-5 sm:top-[4.75rem] ${styles.frame}`}
+      />
+
+      {/* Slide counter */}
+      <div
+        dir="ltr"
+        className="absolute left-8 top-24 z-20 hidden items-baseline gap-2 font-display sm:left-10 md:flex"
+        aria-hidden="true"
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span
+            key={active}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.55, ease: EASE }}
+            className="text-3xl font-medium leading-none"
           >
-            <div className="relative z-10">
-              {makeDraggable('campaign-badge', <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-black/25 px-4 py-2 text-sm font-medium text-white backdrop-blur-md">
-                <Sparkles className="h-4 w-4 text-amber-300" />
-                کمپین ویدئویی کفش و اکسسوری
-              </div>, 'w-fit')}
-
-              {makeDraggable('campaign-eyebrow', <p className="text-sm font-semibold tracking-[0.24em] text-amber-300/90">MODARA / SHOE CARE EDIT</p>, 'w-fit')}
-              {makeDraggable('campaign-title', <h1 className="text-4xl font-bold leading-[1.08] text-white sm:text-6xl lg:text-7xl text-balance">
-                استایل شما
-                <br />
-                <span className="bg-gradient-to-l from-amber-300 via-orange-400 to-amber-500 bg-clip-text text-transparent">بیان شخصیت شماست</span>
-              </h1>)}
-              {makeDraggable('campaign-description', <p className="max-w-xl text-base leading-relaxed text-white/75 sm:text-xl">
-                از درخشش کفش چرمی تا اکسسوری‌های ماندگار؛ جزئیات درست، استایل شما را کامل می‌کند.
-              </p>, 'mt-5 sm:mt-6')}
-
-              {makeDraggable('campaign-actions', <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => onNavigate('shop')}
-                  className="group inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-semibold text-dark-900 shadow-2xl shadow-black/20 transition-all hover:bg-amber-50 active:scale-95 sm:px-7 sm:py-4 sm:text-base"
-                >
-                  مشاهده کالکشن
-                  <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
-                </button>
-                <button
-                  onClick={() => onNavigate('blog')}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/20 active:scale-95 sm:px-7 sm:py-4 sm:text-base sm:backdrop-blur-md"
-                >
-                  راهنمای استایل
-                </button>
-              </div>, 'mt-8')}
-
-              {makeDraggable('campaign-tags', <div className="flex flex-wrap gap-2 text-xs text-white/75">
-                <span className="rounded-full border border-white/15 bg-black/20 px-3 py-2 backdrop-blur-md">ساختار مینیمال</span>
-                <span className="rounded-full border border-white/15 bg-black/20 px-3 py-2 backdrop-blur-md">جزئیات طلایی</span>
-                <span className="rounded-full border border-white/15 bg-black/20 px-3 py-2 backdrop-blur-md">استایل شهری</span>
-              </div>, 'mt-6 sm:mt-8')}
-            </div>
-          </div>
-
-          <div className="absolute bottom-20 left-4 right-4 hidden items-end justify-between gap-4 md:flex lg:left-8 lg:right-8">
-            {makeDraggable('campaign-detail', <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-white/80 backdrop-blur-md" style={{ opacity: detailOpacity }}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/15 text-amber-300"><Clock3 className="h-5 w-5" /></div>
-              <div><p className="text-xs text-white/50">جزئیات کمپین</p><p className="font-semibold">کفش / اکسسوری</p></div>
-            </div>, 'w-fit')}
-            {makeDraggable('campaign-meta', <div className="flex flex-col items-end gap-3">
-              <div className="flex items-center gap-2 text-xs text-white/55">
-                <span>{videoReady ? 'ویدئو آماده است' : 'نسخه نمایشی کمپین'}</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-              </div>
-              <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-black/25 px-4 py-3 backdrop-blur-md">
-                <div className="flex items-center gap-2 text-white/85"><Glasses className="h-4 w-4 text-amber-300" /> اکسسوری</div>
-                <div className="h-5 w-px bg-white/15" />
-                <div className="flex items-center gap-2 text-white/85"><ShoppingBag className="h-4 w-4 text-amber-300" /> کیف چرمی</div>
-                <div className="h-5 w-px bg-white/15" />
-                <div className="flex items-center gap-2 text-white/85"><Gem className="h-4 w-4 text-amber-300" /> جزئیات</div>
-              </div>
-            </div>, 'w-fit')}
-          </div>
-        </div>
-
-        <div className="absolute bottom-9 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center gap-2 text-white/65 sm:bottom-7">
-          <span className="text-[10px] uppercase tracking-[0.32em]">اسکرول کنید</span>
-          <ChevronDown className="h-5 w-5 animate-bounce text-amber-300" />
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 z-20 h-1 bg-white/10">
-          <div className="h-full bg-gradient-to-l from-amber-300 via-orange-500 to-transparent transition-[width] duration-100" style={{ width: `${Math.max(progressPercent, 3)}%` }} />
-        </div>
-        <div className="absolute bottom-6 left-4 z-20 font-mono text-xs text-white/45 sm:left-8">{String(progressPercent).padStart(2, '0')} / 100</div>
-        <div className="absolute bottom-20 left-4 right-4 z-20 flex justify-center md:hidden">
-          <div className="rounded-full border border-white/15 bg-black/25 px-3 py-2 text-[11px] text-white/70 backdrop-blur-sm">
-            {prefersReducedMotion ? 'حرکت‌های اضافی خاموش است' : isMobile ? 'نسخه سبک موبایل فعال است' : 'نسخه نمایشی کمپین'}
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-dark-50 to-transparent" />
+            {pad(active + 1)}
+          </motion.span>
+        </AnimatePresence>
+        <span className="text-sm opacity-45">/ {pad(slides.length)}</span>
       </div>
+
+      {/* Content */}
+      <div className="relative z-10 mx-auto h-full max-w-7xl px-6 sm:px-10 lg:px-12">
+        <div className="flex h-full max-w-xl items-end pb-32 pt-28 sm:items-center sm:pb-24 sm:pt-24 lg:max-w-2xl">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={slide.id}
+              variants={contentVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="w-full"
+            >
+              {/* Eyebrow */}
+              <motion.div variants={itemVariants} className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="h-px w-12 bg-gradient-to-l from-gold-500 to-transparent" aria-hidden="true" />
+                <span className={`text-sm font-bold sm:text-base ${styles.eyebrow}`}>{slide.eyebrow}</span>
+                <span dir="ltr" className={`font-display text-[10px] font-medium tracking-[0.34em] ${styles.latin}`}>
+                  {slide.eyebrowEn}
+                </span>
+              </motion.div>
+
+              {/* Headline */}
+              <motion.h1
+                variants={itemVariants}
+                className="mt-5 text-[2.55rem] font-extrabold leading-[1.08] sm:mt-6 sm:text-6xl lg:text-7xl xl:text-[5.35rem]"
+              >
+                {slide.titleLead}
+                <span className={`mt-1 block pb-2 ${styles.accent}`}>{slide.titleAccent}</span>
+              </motion.h1>
+
+              {/* Ornament */}
+              <motion.div variants={itemVariants} className="mt-4 flex items-center gap-3 sm:mt-5" aria-hidden="true">
+                <span className={`h-px w-16 opacity-70 ${styles.ornament}`} />
+                <span className={`h-1.5 w-1.5 rotate-45 ${styles.ornament}`} />
+                <span className={`h-px w-6 opacity-50 ${styles.ornament}`} />
+              </motion.div>
+
+              {/* Description */}
+              <motion.p
+                variants={itemVariants}
+                className={`mt-4 max-w-lg text-[15px] leading-7 sm:mt-5 sm:text-lg sm:leading-9 ${styles.description}`}
+              >
+                {slide.description}
+              </motion.p>
+
+              {/* CTAs */}
+              <motion.div variants={itemVariants} className="mt-8 flex flex-wrap items-center gap-3 sm:mt-9 sm:gap-4">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('shop', slide.category)}
+                  className={`group relative inline-flex items-center gap-3 overflow-hidden rounded-full py-1.5 pe-1.5 ps-7 text-sm font-bold transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 active:scale-[0.97] sm:py-2 sm:pe-2 sm:ps-9 sm:text-base ${styles.primary}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 -translate-x-[101%] bg-gradient-to-l from-gold-300 via-gold-500 to-gold-600 transition-transform duration-500 ease-out group-hover:translate-x-0"
+                  />
+                  <span className="relative z-10 transition-colors duration-300 group-hover:text-[#171208]">
+                    {slide.cta}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors duration-300 sm:h-10 sm:w-10 ${styles.primaryBadge}`}
+                  >
+                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-0.5 sm:h-5 sm:w-5" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('shop')}
+                  className={`group inline-flex items-center justify-center rounded-full border px-7 py-3 text-sm font-bold backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 active:scale-[0.97] sm:px-9 sm:py-[15px] sm:text-base ${styles.secondary}`}
+                >
+                  مشاهده همه محصولات
+                </button>
+              </motion.div>
+
+              {/* Stats */}
+              <motion.div
+                variants={itemVariants}
+                className={`mt-10 hidden max-w-md grid-cols-3 border-t pt-6 sm:mt-12 sm:grid ${styles.statBorder}`}
+              >
+                {stats.map((stat, i) => (
+                  <div
+                    key={stat.label}
+                    className={i > 0 ? `border-r pr-5 ${styles.statBorder}` : ''}
+                  >
+                    <p className="text-xl font-extrabold leading-none lg:text-2xl">{stat.value}</p>
+                    <p className={`mt-2 text-xs ${styles.statLabel}`}>{stat.label}</p>
+                  </div>
+                ))}
+              </motion.div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* Scroll cue */}
+      <div className="absolute bottom-9 left-1/2 z-20 hidden -translate-x-1/2 flex-col items-center gap-2.5 lg:flex" aria-hidden="true">
+        <span className="text-[11px] font-medium opacity-60">اسکرول کنید</span>
+        <span className={`relative block h-10 w-px overflow-hidden ${isLight ? 'bg-[#211a12]/20' : 'bg-white/25'}`}>
+          <span className="hero-scroll-dot absolute left-0 top-0 block h-3 w-px bg-gold-500" />
+        </span>
+      </div>
+
+      {/* Slider navigation */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-20"
+        onMouseEnter={() => setHoverPaused(true)}
+        onMouseLeave={() => setHoverPaused(false)}
+      >
+        <div className="mx-auto flex max-w-7xl items-end justify-between gap-6 px-6 pb-9 sm:px-10 sm:pb-11 lg:px-12">
+          {/* Slide selectors */}
+          <div className="flex items-end gap-3 sm:gap-5" role="tablist" aria-label="انتخاب اسلاید">
+            {slides.map((s, i) => {
+              const isActive = i === active;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-label={`اسلاید ${i + 1}: ${s.navLabel}`}
+                  onClick={() => goTo(i)}
+                  className="group flex flex-col items-start gap-2.5 text-right"
+                >
+                  <span className="flex items-baseline gap-2">
+                    <span
+                      dir="ltr"
+                      className={`font-display text-[13px] font-medium leading-none transition-all duration-300 ${
+                        isActive ? 'text-gold-600 opacity-100' : 'opacity-45 group-hover:opacity-80'
+                      } ${!isLight && isActive ? '!text-gold-300' : ''}`}
+                    >
+                      {pad(i + 1)}
+                    </span>
+                    <span
+                      className={`hidden text-xs font-semibold transition-opacity duration-300 md:block ${
+                        isActive ? 'opacity-100' : 'opacity-50 group-hover:opacity-85'
+                      }`}
+                    >
+                      {s.navLabel}
+                    </span>
+                  </span>
+                  <span className={`relative block h-px w-12 overflow-hidden sm:w-24 ${styles.navTrack}`}>
+                    {isActive ? (
+                      <span
+                        key={`progress-${active}`}
+                        className="hero-progress-fill absolute inset-0 block bg-gradient-to-l from-gold-400 to-gold-600"
+                        style={{
+                          animationDuration: `${AUTOPLAY_MS}ms`,
+                          animationPlayState: paused || prefersReducedMotion ? 'paused' : 'running',
+                          transform: prefersReducedMotion ? 'scaleX(1)' : undefined,
+                        }}
+                      />
+                    ) : (
+                      <span
+                        className={`absolute inset-0 block origin-right bg-gold-500/60 transition-transform duration-500 ${
+                          i < active ? 'scale-x-100' : 'scale-x-0'
+                        }`}
+                      />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Prev / next */}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label="اسلاید قبلی"
+              className={`flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-300 active:scale-95 ${styles.arrow}`}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label="اسلاید بعدی"
+              className={`flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-300 active:scale-95 ${styles.arrow}`}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Soft transition into the page below */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[4] h-14 bg-gradient-to-t from-[#faf8f5]/90 to-transparent"
+      />
     </section>
   );
 }

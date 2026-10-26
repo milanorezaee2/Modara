@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Calendar, User, ArrowLeft } from 'lucide-react';
 import { supabase, type BlogPost } from '../lib/supabase';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { formatDate, asset } from '../lib/format';
+import { formatDate, imageSrcSet, optimizedAsset } from '../lib/format';
 
 type BlogPostPageProps = {
   slug: string;
@@ -17,7 +17,7 @@ export default function BlogPostPage({ slug, onNavigate }: BlogPostPageProps) {
     setLoading(true);
     supabase
       .from('blog_posts')
-      .select('*')
+      .select('id,title,slug,excerpt,content,image_url,author,created_at')
       .eq('slug', slug)
       .maybeSingle()
       .then(({ data }) => {
@@ -79,8 +79,14 @@ export default function BlogPostPage({ slug, onNavigate }: BlogPostPageProps) {
           {/* Cover image */}
           <div className="aspect-video overflow-hidden rounded-2xl mb-8 bg-dark-100">
             <img
-              src={asset(post.image_url)}
+              src={optimizedAsset(post.image_url, 960)}
+              srcSet={imageSrcSet(post.image_url, [640, 960])}
+              sizes="(min-width: 768px) 768px, 100vw"
               alt={post.title}
+              width={960}
+              height={540}
+              fetchPriority="high"
+              decoding="async"
               className="h-full w-full object-cover"
             />
           </div>

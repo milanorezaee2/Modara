@@ -1,7 +1,7 @@
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, asset } from '../lib/format';
+import { formatPrice, optimizedAsset } from '../lib/format';
 
 type CartDrawerProps = {
   open: boolean;
@@ -91,8 +91,12 @@ export default function CartDrawer({ open, onClose, onCheckout }: CartDrawerProp
                   >
                     <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-dark-50">
                       <img
-                        src={asset(item.product?.image_url)}
+                        src={optimizedAsset(item.product?.image_url, 480)}
                         alt={item.product?.name || ''}
+                        width={480}
+                        height={640}
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-cover"
                       />
                     </div>

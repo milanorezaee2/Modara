@@ -1,24 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Calendar, User, ArrowLeft } from 'lucide-react';
-import { supabase, type BlogPost } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import Breadcrumbs from '../components/Breadcrumbs';
-import { formatDate, asset } from '../lib/format';
+import { formatDate, imageSrcSet, optimizedAsset } from '../lib/format';
+import { BLOG_PREVIEW_COLUMNS, type BlogPreviewPost } from '../lib/catalog';
 
 type BlogProps = {
   onNavigate: (view: string, param?: string) => void;
 };
 
 export default function Blog({ onNavigate }: BlogProps) {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [posts, setPosts] = useState<BlogPreviewPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase
       .from('blog_posts')
-      .select('*')
+      .select(BLOG_PREVIEW_COLUMNS)
       .order('created_at', { ascending: false })
       .then(({ data }) => {
-        setPosts(data || []);
+        setPosts((data || []) as unknown as BlogPreviewPost[]);
         setLoading(false);
       });
   }, []);
@@ -61,8 +62,14 @@ export default function Blog({ onNavigate }: BlogProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2">
                   <div className="aspect-video md:aspect-auto md:h-80 overflow-hidden bg-dark-50">
                     <img
-                      src={asset(featured.image_url)}
+                      src={optimizedAsset(featured.image_url, 960)}
+                      srcSet={imageSrcSet(featured.image_url, [640, 960])}
+                      sizes="(min-width: 768px) 50vw, 100vw"
                       alt={featured.title}
+                      width={960}
+                      height={540}
+                      fetchPriority="high"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
@@ -95,8 +102,14 @@ export default function Blog({ onNavigate }: BlogProps) {
                 >
                   <div className="aspect-video overflow-hidden bg-dark-50">
                     <img
-                      src={asset(post.image_url)}
+                      src={optimizedAsset(post.image_url, 640)}
+                      srcSet={imageSrcSet(post.image_url, [640, 960])}
+                      sizes="(min-width: 768px) 50vw, 100vw"
                       alt={post.title}
+                      width={640}
+                      height={360}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                   </div>

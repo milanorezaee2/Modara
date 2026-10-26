@@ -3,7 +3,7 @@ import { Package, Clock, CheckCircle, Truck, LogOut, Mail, ShieldCheck } from 'l
 import { isDemoMode, supabase, type Order, type OrderItem } from '../lib/supabase';
 import Breadcrumbs from '../components/Breadcrumbs';
 import { useAuth } from '../context/AuthContext';
-import { formatPrice, formatDateTime, asset } from '../lib/format';
+import { formatPrice, formatDateTime, optimizedAsset } from '../lib/format';
 
 type AccountProps = {
   onNavigate: (view: string, param?: string) => void;
@@ -130,8 +130,12 @@ export default function Account({ onNavigate }: AccountProps) {
                       <div key={item.id} className="flex items-center gap-3 rounded-xl bg-dark-50 p-3">
                         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
                           <img
-                            src={asset(item.product?.image_url)}
+                            src={optimizedAsset(item.product?.image_url, 480)}
                             alt={item.product?.name || ''}
+                            width={480}
+                            height={640}
+                            loading="lazy"
+                            decoding="async"
                             className="h-full w-full object-cover"
                           />
                         </div>
