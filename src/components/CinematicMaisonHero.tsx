@@ -183,14 +183,14 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
     offset: ['start start', 'end start'],
   });
   const copyScrollY = useTransform(scrollYProgress, [0, 1], [0, 26]);
-  const stageScrollY = useTransform(scrollYProgress, [0, 1], [0, 96]);
+  const stageScrollY = useTransform(scrollYProgress, [0, 1], [0, 24]);
 
   const pointerX = useMotionValue(0);
   const pointerY = useMotionValue(0);
   const smoothX = useSpring(pointerX, { stiffness: 70, damping: 20, mass: 0.8 });
   const smoothY = useSpring(pointerY, { stiffness: 70, damping: 20, mass: 0.8 });
   const artParallaxX = useTransform(smoothX, [-0.5, 0.5], [22, -22]);
-  const artParallaxY = useTransform(smoothY, [-0.5, 0.5], [15, -15]);
+  const artParallaxY = useTransform(smoothY, [-0.5, 0.5], [10, -10]);
   const copyParallaxX = useTransform(smoothX, [-0.5, 0.5], [-7, 7]);
   const plateParallaxX = useTransform(smoothX, [-0.5, 0.5], [10, -10]);
 
@@ -311,7 +311,7 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
       {/* ——— Key art: one full-bleed frame per chapter ——— */}
       <motion.div
         style={{ y: stageScrollY }}
-        className="absolute -inset-x-8 -top-24 bottom-0"
+        className="absolute inset-0 overflow-hidden"
       >
         <div className="absolute inset-0" style={{ backgroundColor: '#0a0806' }} />
 
@@ -340,7 +340,7 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
             >
               <motion.div
                 style={{ x: artParallaxX, y: artParallaxY }}
-                className="absolute -inset-6"
+                className="absolute -inset-[6%]"
               >
                 <img
                   src={asset(chapter.poster)}

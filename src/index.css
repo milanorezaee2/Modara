@@ -298,14 +298,16 @@
   will-change: transform;
 }
 
+/* Pure zoom + horizontal drift: no vertical travel, so the subject never
+   slides out of the top of the frame. */
 @keyframes maisonPanA {
-  0% { transform: scale(1.14) translate3d(1.6%, -1.2%, 0); }
-  100% { transform: scale(1.03) translate3d(-1.4%, 1%, 0); }
+  0% { transform: scale(1.12) translate3d(1.2%, 0, 0); }
+  100% { transform: scale(1.02) translate3d(-1%, 0, 0); }
 }
 
 @keyframes maisonPanB {
-  0% { transform: scale(1.05) translate3d(-1.8%, 0.8%, 0); }
-  100% { transform: scale(1.16) translate3d(1.2%, -1.4%, 0); }
+  0% { transform: scale(1.03) translate3d(-1.2%, 0, 0); }
+  100% { transform: scale(1.13) translate3d(1%, 0, 0); }
 }
 
 .maison-wipe {
@@ -352,9 +354,9 @@
 
 @keyframes maisonWeave {
   0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.02); }
-  22% { transform: translate3d(-0.32%, 0.18%, 0) rotate(-0.05deg) scale(1.026); }
-  48% { transform: translate3d(0.16%, -0.26%, 0) rotate(0.04deg) scale(1.02); }
-  74% { transform: translate3d(0.28%, 0.22%, 0) rotate(-0.03deg) scale(1.028); }
+  22% { transform: translate3d(-0.28%, 0.12%, 0) rotate(-0.04deg) scale(1.026); }
+  48% { transform: translate3d(0.14%, -0.16%, 0) rotate(0.03deg) scale(1.02); }
+  74% { transform: translate3d(0.24%, 0.14%, 0) rotate(-0.02deg) scale(1.028); }
 }
 
 @media (prefers-reduced-motion: reduce) {
