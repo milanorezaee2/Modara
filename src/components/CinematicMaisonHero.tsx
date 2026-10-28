@@ -51,8 +51,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'clothing',
     label: 'لباس',
-    headline: 'خطِ اولِ استایل',
-    note: 'ترنچ‌کت‌ها، پیراهن‌ها و بلیزرهایی که فرم روز شما را می‌سازند.',
+    headline: 'جایی که استایلِ شما آغاز می‌شود',
+    note: 'ترنچ‌کت، پیراهن و بلیزر؛ فرمِ روزِ شما در یک قاب',
     poster: '/images/hero-atelier/look-minimal.jpg',
     posterAlt: 'بانویی با لباس کرم در رواق آجری روشن — کالکشن لباس مُدارا',
     posterFocus: '26% 48%',
@@ -62,8 +62,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'pants',
     label: 'شلوار',
-    headline: 'فرمِ بی‌زمان',
-    note: 'برش‌های راسته و فراخ که با هر قدم، وقار را همراه می‌کنند.',
+    headline: 'برشی که با هر قدم، وقار را همراه می‌کند',
+    note: 'راسته و فراخ، بی‌زمان و بی‌دردسر',
     poster: '/images/hero-lux-1.jpg',
     posterAlt: 'بانویی با پالتوی شتری و شلوار مشکی در رواق تراورتن',
     posterFocus: '30% 46%',
@@ -73,8 +73,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'glasses',
     label: 'عینک',
-    headline: 'قابِ نگاه',
-    note: 'فریم‌هایی که صورت را قاب می‌گیرند و نگاه را به یاد می‌سپارند.',
+    headline: 'قابی که نگاهِ شما را به یاد می‌سپارد',
+    note: 'فریم‌هایی برای صورت‌هایی که دیده می‌شوند',
     poster: '/images/hero-lux-3.jpg',
     posterAlt: 'کیف چرم عسلی، عینک خلبانی و ساعت طلایی روی سکوی سنگی',
     posterFocus: '28% 56%',
@@ -84,8 +84,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'watch',
     label: 'ساعت',
-    headline: 'وزنِ ثانیه‌ها',
-    note: 'ساعت‌هایی که دقت را به طلا و فولاد ترجمه می‌کنند.',
+    headline: 'دقت، وقتی به طلا و فولاد ترجمه می‌شود',
+    note: 'ثانیه‌هایی که وزن دارند',
     poster: '/images/hero-atelier/look-tailored.jpg',
     posterAlt: 'آقایی با کت شلوار سرمه‌ای در حال بستن ساعت در بوتیک',
     posterFocus: '34% 48%',
@@ -95,8 +95,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'bag',
     label: 'کیف',
-    headline: 'همراهِ همیشگی',
-    note: 'چرم‌های دست‌دوز که با گذر زمان، شخصی‌تر می‌شوند.',
+    headline: 'چرمی که با گذرِ زمان، شخصی‌تر می‌شود',
+    note: 'همراهی که هر روز، امضای شما را می‌برد',
     poster: '/images/hero-atelier/look-noir.jpg',
     posterAlt: 'بانویی با کیف زنجیردار مشکی در راهروی طلایی کاخ',
     posterFocus: '36% 50%',
@@ -106,8 +106,8 @@ const CHAPTERS: Chapter[] = [
   {
     key: 'accessory',
     label: 'اکسسوری',
-    headline: 'جزئیاتِ ماندگار',
-    note: 'کمربند، جواهر و کلاه؛ امضاهای کوچکِ یک استایل کامل.',
+    headline: 'جزئیاتِ کوچک، امضای کامل',
+    note: 'کمربند، جواهر و کلاه؛ آخرین ضربهٔ یک استایل',
     poster: '/images/hero-fashion-poster.png',
     posterAlt: 'جزئیات پالتوی مشکی، ساعت طلایی و کمربند چرم',
     posterFocus: '50% 46%',
@@ -125,12 +125,6 @@ const chapterIcons: Record<string, ReactNode> = {
   accessory: <Gem className="h-3.5 w-3.5" aria-hidden="true" />,
 };
 
-/** Splits a headline into two masked lines: the noun stays gold. */
-function headlineLines(headline: string): string[] {
-  const words = headline.trim().split(/\s+/);
-  if (words.length < 2) return [headline];
-  return [words.slice(0, -1).join(' '), words[words.length - 1]];
-}
 
 /** Deterministic dust motes floating through the projector light. */
 const DUST_MOTES = Array.from({ length: 18 }, (_, i) => ({
@@ -575,8 +569,8 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
             </motion.div>
 
             <h1
-              className="relative text-[2.2rem] font-black leading-[1.2] tracking-[-0.01em] sm:text-5xl lg:text-[3.65rem] xl:text-[4.15rem]"
-              style={{ color: '#fdf8ec' }}
+              className="relative text-[1.72rem] font-black leading-[1.35] tracking-[-0.01em] sm:text-[2.35rem] sm:leading-[1.3] lg:text-[2.75rem] xl:text-[3.1rem]"
+              style={{ color: '#fdf8ec', textWrap: 'balance' }}
             >
               <span className="sr-only">مُدارا — فروشگاه آنلاین مد و فشن</span>
               <AnimatePresence mode="wait" initial={false}>
@@ -588,41 +582,33 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, transition: { duration: 0.18 } }}
                 >
-                  {headlineLines(chapter.headline).map((line, lineIndex) => (
-                    <span
-                      key={`${chapter.key}-line-${lineIndex}`}
-                      className="block overflow-hidden py-[0.06em]"
+                  {/* One line, one breath: the closing noun stays gold. */}
+                  <span className="block overflow-hidden py-[0.08em]">
+                    <motion.span
+                      variants={lineVariants}
+                      custom={0}
+                      initial="hidden"
+                      animate="show"
+                      className="block"
                     >
-                      <motion.span
-                        custom={lineIndex}
-                        variants={lineVariants}
-                        initial="hidden"
-                        animate="show"
-                        className="block"
+                      <span
+                        style={{
+                          backgroundImage:
+                            'linear-gradient(to left, #fdf8ec 0%, #f6edd3 45%, #e8cf97 78%, #c0913f 100%)',
+                          WebkitBackgroundClip: 'text',
+                          backgroundClip: 'text',
+                          color: 'transparent',
+                        }}
                       >
-                        {lineIndex === 0 ? (
-                          line
-                        ) : (
-                          <span
-                            style={{
-                              backgroundImage:
-                                'linear-gradient(to left, #f6edd3, #e2c279 55%, #c0913f)',
-                              WebkitBackgroundClip: 'text',
-                              backgroundClip: 'text',
-                              color: 'transparent',
-                            }}
-                          >
-                            {line}
-                          </span>
-                        )}
-                      </motion.span>
-                    </span>
-                  ))}
+                        {chapter.headline}
+                      </span>
+                    </motion.span>
+                  </span>
                 </motion.span>
               </AnimatePresence>
             </h1>
 
-            <div className="relative mt-4 min-h-[3.5rem] sm:min-h-[3.25rem]">
+            <div className="relative mt-3.5 min-h-[1.9rem]">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.p
                   key={`note-${chapter.key}`}
