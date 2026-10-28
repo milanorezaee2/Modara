@@ -119,6 +119,29 @@ const CHAPTERS: Chapter[] = [
   },
 ];
 
+/** Slower, independent cadence for the film that runs behind the stage. */
+const BACKDROP_MS = 9200;
+
+/** Crop focus per still, so the vertical catalogue photos read well full-bleed. */
+const BACKDROP_FOCUS: Record<string, string> = {
+  clothing: '50% 44%',
+  pants: '50% 40%',
+  glasses: '50% 50%',
+  watch: '50% 42%',
+  bag: '50% 52%',
+  accessory: '50% 46%',
+};
+
+/** Deterministic dust motes floating through the projector light. */
+const DUST_MOTES = Array.from({ length: 20 }, (_, i) => ({
+  left: 3 + ((i * 37) % 94),
+  top: 6 + ((i * 29) % 88),
+  size: i % 5 === 0 ? 3 : i % 3 === 0 ? 2 : 1.5,
+  delay: (i % 8) * 1.15,
+  duration: 16 + (i % 6) * 3.5,
+  drift: (i % 2 === 0 ? 1 : -1) * (10 + (i % 5) * 9),
+}));
+
 const chapterIcons: Record<string, ReactNode> = {
   clothing: <Shirt className="h-3.5 w-3.5" aria-hidden="true" />,
   pants: <Package className="h-3.5 w-3.5" aria-hidden="true" />,
@@ -164,6 +187,7 @@ const lineVariants: Variants = {
 export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [index, setIndex] = useState(0);
+  const [bgIndex, setBgIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
   const [tabHidden, setTabHidden] = useState(false);
@@ -173,6 +197,9 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
 
   const prefersReducedMotion = useReducedMotion();
   const chapter = CHAPTERS[index];
+  /* With reduced motion the backdrop simply mirrors the active chapter. */
+  const backdropIndex = prefersReducedMotion ? index : bgIndex;
+  const backdropSlide = CHAPTERS[backdropIndex];
   const product = products[chapter.productSlug];
 
   const { scrollYProgress } = useScroll({
@@ -187,6 +214,8 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
   const pointerY = useMotionValue(0);
   const smoothX = useSpring(pointerX, { stiffness: 60, damping: 18, mass: 0.9 });
   const smoothY = useSpring(pointerY, { stiffness: 60, damping: 18, mass: 0.9 });
+  const backdropParallaxX = useTransform(smoothX, [-0.5, 0.5], [26, -26]);
+  const backdropParallaxY = useTransform(smoothY, [-0.5, 0.5], [18, -18]);
   const posterParallaxX = useTransform(smoothX, [-0.5, 0.5], [12, -12]);
   const posterParallaxY = useTransform(smoothY, [-0.5, 0.5], [9, -9]);
   const copyParallaxX = useTransform(smoothX, [-0.5, 0.5], [-6, 6]);
@@ -265,6 +294,22 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
     return () => window.clearInterval(timer);
   }, [index, inView, paused, prefersReducedMotion, tabHidden]);
 
+  /* The background film keeps its own tempo, independent of the chapter cuts. */
+  useEffect(() => {
+    if (prefersReducedMotion || tabHidden || !inView) return;
+    const timer = window.setInterval(() => {
+      setBgIndex((current) => (current + 1) % CHAPTERS.length);
+    }, BACKDROP_MS);
+    return () => window.clearInterval(timer);
+  }, [bgIndex, inView, prefersReducedMotion, tabHidden]);
+
+  /* Warm the next backdrop still so the wipe never reveals a blank frame. */
+  useEffect(() => {
+    const next = CHAPTERS[(bgIndex + 1) % CHAPTERS.length];
+    const img = new Image();
+    img.src = asset(next.backgroundFallback);
+  }, [bgIndex]);
+
   const handlePointerMove = (event: React.MouseEvent<HTMLElement>) => {
     if (prefersReducedMotion) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -315,32 +360,112 @@ export default function CinematicMaisonHero({ onNavigate }: CinematicMaisonHeroP
         </motion.div>
       )}
 
-      {/* ——— Backdrop: out-of-focus frame of the active chapter ——— */}
+      {/* ——— Backdrop: a slow film running beneath the stage ——— */}
       <motion.div
         aria-hidden="true"
         style={{ y: backdropScrollY }}
-        className="pointer-events-none absolute -inset-x-8 -top-10 bottom-0"
+        className="pointer-events-none absolute -inset-x-10 -top-32 bottom-0"
       >
-        <AnimatePresence initial={false}>
-          <motion.div
-            key={`backdrop-${chapter.key}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.4, ease: EASE }}
-            className="absolute inset-0"
-          >
-            <img
-              src={asset(chapter.backgroundFallback)}
-              alt=""
-              aria-hidden="true"
-              className="h-full w-full scale-125 object-cover opacity-[0.22] blur-2xl saturate-[0.7]"
-              loading={index === 0 ? 'eager' : 'lazy'}
-              decoding="async"
-            />
-          </motion.div>
-        </AnimatePresence>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_72%_38%,rgba(217,189,130,0.16),transparent_58%),radial-gradient(ellipse_at_18%_82%,rgba(120,83,38,0.22),transparent_60%),linear-gradient(180deg,rgba(8,7,6,0.92),rgba(10,8,6,0.82)_45%,rgba(8,7,6,0.97))]" />
+        <div className="absolute inset-0 bg-[#0a0806]" />
+
+        {/* Gate weave: the tiny, organic drift of real projector film */}
+        <div className={prefersReducedMotion ? 'absolute inset-0' : 'maison-weave absolute inset-0'}>
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={`backdrop-${backdropIndex}`}
+              initial={
+                prefersReducedMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, clipPath: 'inset(0 0 0 100%)' }
+              }
+              animate={
+                prefersReducedMotion
+                  ? { opacity: 1 }
+                  : { opacity: 1, clipPath: 'inset(0 0 0 0%)' }
+              }
+              exit={{
+                opacity: 0,
+                transition: { duration: prefersReducedMotion ? 0.3 : 2, ease: EASE },
+              }}
+              transition={{ duration: prefersReducedMotion ? 0.4 : 1.9, ease: [0.76, 0, 0.24, 1] }}
+              style={{ willChange: 'clip-path, opacity' }}
+              className="absolute inset-0"
+            >
+              {/* Sharp, heavily graded still */}
+              <motion.div
+                style={{ x: backdropParallaxX, y: backdropParallaxY }}
+                className="absolute -inset-8"
+              >
+                <img
+                  src={asset(backdropSlide.backgroundFallback)}
+                  alt=""
+                  loading={backdropIndex === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  style={{ objectPosition: BACKDROP_FOCUS[backdropSlide.key] ?? '50% 45%' }}
+                  className={`h-full w-full object-cover opacity-[0.58] [filter:brightness(.56)_contrast(1.08)_saturate(.82)] ${
+                    prefersReducedMotion
+                      ? ''
+                      : backdropIndex % 2 === 0
+                        ? 'maison-pan-a'
+                        : 'maison-pan-b'
+                  }`}
+                />
+              </motion.div>
+
+              {/* Bloom pass: the same still, dissolved into ambient light */}
+              <div className="absolute -inset-12 hidden sm:block">
+                <img
+                  src={asset(backdropSlide.backgroundFallback)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full scale-110 object-cover opacity-[0.34] blur-[64px] saturate-125"
+                />
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Colour grade + legibility scrims (copy sits on the right in RTL) */}
+        <div className="absolute inset-0 bg-[linear-gradient(270deg,rgba(8,7,6,0.96)_0%,rgba(9,8,6,0.82)_34%,rgba(10,8,6,0.34)_62%,rgba(8,7,6,0.9)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_26%_26%,rgba(217,189,130,0.2),transparent_52%),radial-gradient(ellipse_at_80%_80%,rgba(118,80,36,0.3),transparent_58%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,7,6,0.94)_0%,transparent_32%,transparent_68%,rgba(8,7,6,0.97)_100%)]" />
+
+        {/* Drifting light leak, like a projector lamp breathing */}
+        {!prefersReducedMotion && (
+          <div className="maison-leak absolute -inset-1/4 bg-[radial-gradient(circle_at_50%_50%,rgba(255,214,150,0.26),transparent_56%)] mix-blend-screen" />
+        )}
+
+        {/* Projector wipe: a sliver of light travels with every cut */}
+        {!prefersReducedMotion && (
+          <span
+            key={`wipe-${backdropIndex}`}
+            className="maison-wipe absolute inset-y-0 z-10 w-px bg-gradient-to-b from-transparent via-gold-100/80 to-transparent shadow-[0_0_46px_16px_rgba(217,189,130,0.28)]"
+          />
+        )}
+
+        {/* Dust in the beam */}
+        {!prefersReducedMotion && (
+          <div className="absolute inset-0 overflow-hidden">
+            {DUST_MOTES.map((mote, moteIndex) => (
+              <span
+                key={`mote-${moteIndex}`}
+                className="maison-mote absolute rounded-full bg-gold-100/70"
+                style={
+                  {
+                    left: `${mote.left}%`,
+                    top: `${mote.top}%`,
+                    width: mote.size,
+                    height: mote.size,
+                    animationDelay: `${mote.delay}s`,
+                    animationDuration: `${mote.duration}s`,
+                    '--dust-x': `${mote.drift}px`,
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Vertical hairlines + brushed-metal sheen */}
