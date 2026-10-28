@@ -60,3 +60,10 @@ VITE_SUPABASE_ANON_KEY=xxxx
 ```bash
 BASE_PATH=/ npm run build
 ```
+
+## انتشار روی Netlify
+
+فایل `netlify.toml` از قبل آماده است (build: `npm run build`، publish: `dist`،
+`BASE_PATH=/`، redirect، هدرهای کش و امنیتی). کافی است ریپو را در Netlify ایمپورت کنید.
+راهنمای گام‌به‌گام، متغیرهای محیطی، دامنهٔ اختصاصی، عیب‌یابی و چک‌لیست انتشار:
+[`NETLIFY_DEPLOY.md`](./NETLIFY_DEPLOY.md)

@@ -5,11 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>در حال انتقال به مُدارا…</title>
     <script>
+      /* این صفحه فقط وقتی سرو می‌شود که میزبان مسیر ناشناخته را به 404 بدهد.
+         مسیر پایه به‌صورت خودکار تشخیص داده می‌شود تا روی ریشهٔ دامنه
+         (Netlify / دامنهٔ اختصاصی) و زیرمسیرهای GitHub Pages هر دو کار کند. */
       (function () {
-        var base = '/ModernAra1/';
-        var path = window.location.pathname;
-        var relativePath = path.indexOf(base) === 0 ? path.slice(base.length) : path.replace(/^\/+/, '');
-        var route = relativePath.replace(/^\/+|\/+$/g, '');
+        var path = window.location.pathname || '/';
+        var bases = ['/Modara/', '/ModernAra1/'];
+        var base = '/';
+        for (var i = 0; i < bases.length; i += 1) {
+          if (path.indexOf(bases[i]) === 0) {
+            base = bases[i];
+            break;
+          }
+        }
+        var relative = base === '/' ? path.replace(/^\/+/, '') : path.slice(base.length);
+        var route = relative.replace(/^\/+|\/+$/g, '');
         var targetHash = window.location.hash || (route ? '#' + route : '');
         window.location.replace(base + window.location.search + targetHash);
       })();
