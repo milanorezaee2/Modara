@@ -1,0 +1,58 @@
+# ——— تنظیمات استقرار روی Netlify ———
+
+[build]
+  # دستور ساخت و پوشهٔ خروجی (Vite → dist)
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # نسخهٔ Node برای فرایند build (Vite 5 حداقل Node 18 می‌خواهد)
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--no-audit --no-fund"
+  # ⚠️ مهم‌ترین خط این فایل:
+  # پیش‌فرض vite.config.ts هنگام build مسیر «/Modara/» است (برای GitHub Pages).
+  # Netlify سایت را از ریشهٔ دامنه («/») سرو می‌کند، پس base باید «/» باشد،
+  # وگرنه همهٔ JS/CSS/تصاویر با 404 برمی‌گردند و صفحه سفید می‌شود.
+  BASE_PATH = "/"
+
+# روتینگ این پروژه hash-based است (#/shop، #/product/...)، پس به redirect
+# برای مسیرها نیازی نیست؛ این قاعده فقط مسیرهای قدیمی/مستقیم (مثل /shop یا
+# /product/x) را به اپ می‌رساند تا 404 خام Netlify دیده نشود.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# ——— کش و هدرها ———
+
+# فایل‌های build شدهٔ Vite نام هش‌دار دارند → کش یک‌سالهٔ تغییرناپذیر
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# تصاویر و ویدئوهای پوشهٔ public نام ثابت دارند → کش میان‌مدت
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/videos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+# HTML هرگز کش نشود تا نسخهٔ جدید بلافاصله دیده شود
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# هدرهای امنیتی پایه
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    X-Frame-Options = "SAMEORIGIN"

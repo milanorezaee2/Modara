@@ -8,7 +8,7 @@ import {
 } from '../lib/catalog';
 import { imageSrcSet, optimizedAsset } from '../lib/format';
 import ProductCard from '../components/ProductCard';
-import InteractiveBoutiqueHero from '../components/InteractiveBoutiqueHero';
+import CinematicMaisonHero from '../components/CinematicMaisonHero';
 import TrustMarquee from '../components/home/TrustMarquee';
 import DeferredMount from '../components/DeferredMount';
 
@@ -166,8 +166,8 @@ export default function Home({ onNavigate }: HomeProps) {
 
   return (
     <div>
-      {/* Hero Slider */}
-      <InteractiveBoutiqueHero onNavigate={onNavigate} />
+      {/* Cinematic hero */}
+      <CinematicMaisonHero onNavigate={onNavigate} />
 
       {/* Trust marquee */}
       <TrustMarquee />
