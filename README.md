@@ -1,5 +1,7 @@
 # مُدارا | ModAra
 
+[![CI](https://github.com/milanorezaee2/Modara/actions/workflows/ci.yml/badge.svg)](https://github.com/milanorezaee2/Modara/actions/workflows/ci.yml)
+
 فروشگاه آنلاین مد و فشن (React + TypeScript + Vite + Tailwind).
 
 ## اجرای سریع (بدون هیچ تنظیماتی)
@@ -40,12 +42,26 @@ VITE_SUPABASE_ANON_KEY=xxxx
 با وجود این مقادیر، برنامه به‌جای بک‌اند محلی از کلاینت واقعی Supabase استفاده می‌کند و
 مایگریشن‌های موجود در `supabase/migrations` را می‌توانید روی پروژه اجرا کنید.
 
+## تصاویر رگال و پالت رنگ
+
+هیروی صفحه‌ی اصلی («رگال») هر محصول را به‌صورت نواری باریک و تمام‌قد نشان می‌دهد.
+این نوارها و رنگ میانگین هر پارچه از روی عکس‌های اصلی ساخته می‌شوند:
+
+```bash
+npm run images:rack     # می‌سازد public/images/rack/**  (نوار ۷۲px برای هر محصول)
+npm run images:palette   # می‌سازد src/lib/productPalette.ts (رنگ و روشنایی هر محصول)
+```
+
+پس از افزودن یا تغییر عکس محصول، هر دو را دوباره اجرا کنید.
+
 ## اسکریپت‌ها
 
 | دستور | توضیح |
 | --- | --- |
 | `npm run dev` | اجرای سرور توسعه |
 | `npm run build` | ساخت نسخه production در `dist` |
+| `npm run build:netlify` | همان build با `BASE_PATH=/` (عیناً مثل Netlify) |
+| `npm run verify:live <url>` | مقایسهٔ اثرانگشت باندل سایت زنده با `dist/` |
 | `npm run preview` | سرو کردن خروجی build |
 | `npm run lint` | اجرای ESLint |
 | `npm run typecheck` | بررسی تایپ‌ها با TypeScript |
@@ -53,8 +69,8 @@ VITE_SUPABASE_ANON_KEY=xxxx
 ## انتشار روی GitHub Pages
 
 ورک‌فلوی `.github/workflows/deploy.yml` با هر پوش روی `main` پروژه را build و منتشر می‌کند.
-چون Pages این ریپو را زیر مسیر `/ModernAra1/` سرو می‌کند، `vite.config.ts` هنگام build مقدار
-`base` را روی `/ModernAra1/` می‌گذارد و همهٔ تصاویر با تابع `asset()` (در `src/lib/format.ts`)
+چون Pages این ریپو را زیر مسیر `/Modara/` سرو می‌کند، `vite.config.ts` هنگام build مقدار
+`base` را روی `/Modara/` می‌گذارد و همهٔ تصاویر با تابع `asset()` (در `src/lib/format.ts`)
 نسبت به همان مسیر ساخته می‌شوند. برای انتشار روی دامنهٔ اختصاصی یا ریشهٔ سایت:
 
 ```bash
@@ -65,5 +81,13 @@ BASE_PATH=/ npm run build
 
 فایل `netlify.toml` از قبل آماده است (build: `npm run build`، publish: `dist`،
 `BASE_PATH=/`، redirect، هدرهای کش و امنیتی). کافی است ریپو را در Netlify ایمپورت کنید.
+بعد از اتصال، هر merge روی `main` به‌صورت خودکار منتشر می‌شود و هر Pull Request یک
+Deploy Preview می‌گیرد؛ برای اثبات اینکه همان بیلد روی سایت زنده است:
+
+```bash
+npm run build:netlify
+npm run verify:live https://<your-site>.netlify.app
+```
+
 راهنمای گام‌به‌گام، متغیرهای محیطی، دامنهٔ اختصاصی، عیب‌یابی و چک‌لیست انتشار:
 [`NETLIFY_DEPLOY.md`](./NETLIFY_DEPLOY.md)
