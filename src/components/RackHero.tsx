@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getClothingProducts } from '../lib/catalog';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ArrowLeft, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { getCategories, getClothingProducts } from '../lib/catalog';
 import type { Product } from '../lib/supabase';
-import { asset } from '../lib/format';
+import { asset, formatPrice, imageSrcSet, optimizedAsset } from '../lib/format';
 import { hangerFor, sideFor } from '../lib/hangerGarments';
 
 type RackHeroProps = {
@@ -22,6 +22,10 @@ type RackItem = {
   hex: string;
   /** width / height of `image`. */
   aspect: number;
+  /** Full catalogue record: what the product card reads out. */
+  product: Product;
+  /** Department label, e.g. «لباس». */
+  categoryName: string;
 };
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -45,9 +49,11 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
 
   useEffect(() => {
     let cancelled = false;
-    getClothingProducts()
-      .then((products: Product[]) => {
+    Promise.all([getClothingProducts(), getCategories()])
+      .then(([products, categories]) => {
         if (cancelled) return;
+        const categoryNames = new Map<string, string>();
+        for (const category of categories) categoryNames.set(category.id, category.name);
         /* Every piece hangs as its real profile — nothing is faked by rotation. */
         const hanging = products
           .map((product) => {
@@ -60,6 +66,8 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               image: garment.image,
               hex: garment.hex,
               aspect: garment.aspect,
+              product,
+              categoryName: categoryNames.get(product.category_id ?? '') ?? 'کالکشن',
             } satisfies RackItem;
           })
           .filter((item): item is RackItem => item !== null);
@@ -250,8 +258,118 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           </p>
         </motion.div>
 
+        {/* Product card: the piece you are on, with its full details */}
+        <div className="mx-auto mt-9 w-full max-w-4xl sm:mt-10">
+          <AnimatePresence mode="wait" initial={false}>
+            {activeItem && (
+              <motion.article
+                key={activeItem.id}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.4, ease: EASE }}
+                className="relative overflow-hidden rounded-[24px] border border-[#d9cdb6] bg-[#fdfaf4]/80 shadow-[0_30px_60px_-40px_rgba(45,33,18,0.65)] backdrop-blur-sm"
+                aria-live="polite"
+              >
+                <div className="grid gap-0 sm:grid-cols-[184px_minmax(0,1fr)]">
+                  {/* phone: the product photo as a wide crop above the details */}
+                  <div className="relative h-36 w-full sm:hidden">
+                    <img
+                      src={optimizedAsset(activeItem.product.image_url, 480)}
+                      srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
+                      sizes="(min-width: 640px) 184px, 100vw"
+                      alt={activeItem.product.name}
+                      className="h-full w-full object-cover"
+                      decoding="async"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(253,250,244,0.15),rgba(253,250,244,0.95))]"
+                    />
+                  </div>
+
+                  {/* the product photo, as sold */}
+                  <div className="relative hidden sm:block">
+                    <img
+                      src={optimizedAsset(activeItem.product.image_url, 480)}
+                      srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
+                      sizes="184px"
+                      alt={activeItem.product.name}
+                      className="h-full min-h-[220px] w-full object-cover"
+                      decoding="async"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(270deg,rgba(253,250,244,0.9),rgba(253,250,244,0)_38%)]"
+                    />
+                  </div>
+
+                  <div className="p-4 text-center sm:p-5 sm:text-right">
+                    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-between">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2e9d8] px-2.5 py-1 text-[10px] font-bold text-[#7d6636]">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: activeItem.hex }}
+                          aria-hidden="true"
+                        />
+                        {activeItem.categoryName}
+                      </span>
+                      <span className="text-[10.5px] font-bold tabular-nums text-[#9a8f7c]">
+                        قطعهٔ {new Intl.NumberFormat('fa-IR').format(activeIndex + 1)} از{' '}
+                        {new Intl.NumberFormat('fa-IR').format(items.length)}
+                      </span>
+                    </div>
+
+                    <h2 className="mt-2.5 text-balance text-[clamp(1.05rem,2.2vw,1.5rem)] font-bold leading-snug text-[#241d14]">
+                      {activeItem.product.name}
+                    </h2>
+
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11.5px] sm:justify-start">
+                      <span className="inline-flex items-center gap-1 font-bold text-[#3f3527]">
+                        <Star className="h-3.5 w-3.5 fill-[#c0913f] text-[#c0913f]" aria-hidden="true" />
+                        {new Intl.NumberFormat('fa-IR').format(
+                          Number(activeItem.product.rating.toFixed(1)),
+                        )}
+                      </span>
+                      <span className="h-3 w-px bg-[#d9cdb6]" aria-hidden="true" />
+                      <span className="text-[#6b6152]">
+                        {activeItem.product.stock > 0
+                          ? `${new Intl.NumberFormat('fa-IR').format(activeItem.product.stock)} عدد موجود`
+                          : 'ناموجود'}
+                      </span>
+                      <span className="h-3 w-px bg-[#d9cdb6]" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5 rounded-[6px] border border-[#a3783a]/60 bg-[#fdfaf2] px-2 py-0.5 font-bold text-[#3f3527]">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#a3783a]" aria-hidden="true" />
+                        {formatPrice(activeItem.product.price)}
+                      </span>
+                    </div>
+
+                    {activeItem.product.description && (
+                      <p className="mx-auto mt-2.5 line-clamp-2 max-w-xl text-[12px] leading-6 text-[#6b6152] sm:mx-0">
+                        {activeItem.product.description}
+                      </p>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('product', activeItem.slug)}
+                      className="group mt-3.5 inline-flex items-center justify-center gap-2 rounded-full bg-[#241d14] px-5 py-2.5 text-[12.5px] font-semibold text-[#f7f1e4] shadow-[0_16px_30px_-18px_rgba(36,29,20,0.9)] transition-all duration-300 hover:bg-[#3a2f20] active:scale-[0.98]"
+                    >
+                      مشاهدهٔ محصول
+                      <ArrowLeft
+                        className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </motion.article>
+            )}
+          </AnimatePresence>
+        </div>
+
         {/* The rail, and the garments on it */}
-        <div className="relative mt-10 sm:mt-12">
+        <div className="relative mt-8 sm:mt-10">
           <div
             className="pointer-events-none absolute inset-x-0 top-[6px] z-20 h-[16px]"
             aria-hidden="true"
