@@ -219,3 +219,82 @@ netlify env:list            # بررسی متغیرهای محیطی
 (با `BASE_PATH=/Modara/`) منتشر می‌کند. این با Netlify تضادی ندارد، اما اگر نمی‌خواهید دو نسخه
 همزمان منتشر شود، در GitHub: **Actions → Deploy to GitHub Pages → ⋯ → Disable workflow**.
 اگر فقط Netlify می‌خواهید، فایل ورک‌فلوی مذکور را هم می‌توانید حذف کنید (اختیاری).
+
+---
+
+## ۱۱) از «همین‌جا» تا Netlify — هر تغییر کجا دیده می‌شود؟
+
+پرسشی که این بخش پاسخ می‌دهد: «اگر چیزی را در این ریپو تغییر بدهیم، هم در GitHub و هم در Netlify دیده می‌شود؟»
+
+**پاسخ کوتاه:** بله — به شرطی که ۱) ریپو در Netlify وصل شده باشد و ۲) تغییر در شاخهٔ `main` باشد.
+شاخه‌های کاری (`arena/...`) به‌تنهایی روی سایت اصلی منتشر نمی‌شوند؛ آن‌ها اول به `main` می‌رسند.
+
+### مسیر یک تغییر
+
+| اتفاق | GitHub | Netlify |
+| --- | --- | --- |
+| commit روی شاخهٔ کاری | همان لحظه در شاخه و در تب **Branches** | فقط اگر Branch deploy فعال باشد |
+| باز شدن Pull Request | diff کامل + اجرای **CI** (`typecheck` / `lint` / `build`) | **Deploy Preview** با URL موقت همان PR |
+| merge در `main` | `main` به‌روز + CI سبز + انتشار GitHub Pages | **Production** خودکار build و publish می‌شود |
+
+ورک‌فلوی `.github/workflows/ci.yml` دقیقاً همان دستوری را اجرا می‌کند که Netlify اجرا می‌کند
+(`npm run build:netlify` با `BASE_PATH=/`)؛ پس اگر تیک سبز CI را روی PR دیدید، build نتلیفای هم سالم است.
+
+### اثبات اینکه سایت زنده همان بیلد است
+
+Vite نام هر باندل را با اثرانگشت محتوا می‌سازد (`index-<hash>.js`). اسکریپت زیر همان اثرانگشت را
+از `dist/` محلی می‌خواند و با HTML سایت زنده مقایسه می‌کند؛ نتیجه‌اش «همان بیلد» یا «بیلد قدیمی» است،
+نه حدس و گمان:
+
+```bash
+npm run build:netlify
+npm run verify:live https://your-site.netlify.app
+```
+
+خروجی موفق:
+
+```
+  target  https://your-site.netlify.app
+  commit  1a2b3c4  style(hero): one column, one rhythm, nothing floating
+
+  fingerprint        this build      live site
+  ────────────────────────────────────────────────
+  ✓ index-9f3ac1d2.js   9f3ac1d2     9f3ac1d2
+  ✓ index-4b7e0a1c.css  4b7e0a1c     4b7e0a1c
+
+  ✓ the live site is serving exactly this build
+```
+
+اگر `✗` دیدید، به ترتیب این سه مورد را بررسی کنید:
+
+1. **Deploy تمام نشده** — Netlify → Deploys؛ صبر کنید تا وضعیت `Published` شود.
+2. **شاخهٔ انتشار اشتباه است** — Netlify → Site configuration → Build & deploy → Branches؛
+   `Production branch` باید `main` باشد.
+3. **تغییر هنوز در `main` نیست** — PR مرج نشده است.
+
+> اسکریپت با `?v=<timestamp>` و `cache-control: no-cache` درخواست می‌دهد، پس کش مرورگر یا CDN
+> نتیجه را خراب نمی‌کند.
+
+### اگر هنوز Netlify را به GitHub وصل نکرده‌اید
+
+تا وقتی اتصال برقرار نشود، تغییرات **خودکار** منتشر نمی‌شوند (GitHub به‌روز می‌شود، Netlify نه).
+دو راه دارید:
+
+- **اتصال ریپو (توصیه‌شده):** بخش ۳ همین سند؛ از آن به بعد هر merge روی `main` = یک انتشار.
+- **انتشار دستی (موقت):**
+  ```bash
+  npm run build:netlify
+  npx netlify-cli deploy --prod --dir=dist   # نیاز به netlify login
+  ```
+  یا پوشهٔ `dist` را در تب **Deploys** داخل کادر Drag & Drop رها کنید. توجه: در حالت manual،
+  `SITE_URL` را هم تنظیم کنید تا تگ‌های Open Graph به دامنهٔ درست اشاره کنند:
+  `SITE_URL=https://your-site.netlify.app npm run build:netlify`.
+
+### آنچه در بیلد به‌صورت خودکار درست می‌شود
+
+- **آدرس مطلق برای اشتراک‌گذاری:** Netlify هنگام build متغیرهای `URL` و `DEPLOY_PRIME_URL` را می‌دهد؛
+  `vite.config.ts` آن‌ها را داخل `canonical`، `og:url` و `og:image` جای‌گذاری می‌کند
+  (روی GitHub Pages هم به‌طور خودکار آدرس Pages استفاده می‌شود). بدون این کار، پیش‌نمایش لینک
+  در تلگرام/واتس‌اپ تصویر پیش‌فرض بیربط نشان می‌داد.
+- **تصویر اشتراک‌گذاری اختصاصی:** `public/images/og-cover.jpg` (۱۲۰۰×۶۳۰، رگال کالکشن).
+- **آیکون سایت:** `public/favicon.svg` و `public/apple-touch-icon.png`.

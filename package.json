@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:netlify": "BASE_PATH=/ vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "verify:live": "node scripts/check-deploy.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "seed": "node scripts/generate-seed.mjs",
     "images:optimize": "node scripts/optimize-images.mjs",

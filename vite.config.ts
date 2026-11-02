@@ -38,12 +38,38 @@ export default defineConfig(({ command, mode }) => {
     },
   };
 
+  /**
+   * Absolute origin used by the canonical/Open Graph tags in index.html.
+   * Netlify exports URL (primary site) and DEPLOY_PRIME_URL (this deploy,
+   * including Deploy Previews) to the build, so shared links never point at
+   * someone else's domain; local builds fall back to the dev server.
+   */
+  const buildBase = command === 'build' ? process.env.BASE_PATH ?? '/Modara/' : '/';
+  const siteUrl = (
+    env.SITE_URL ||
+    process.env.SITE_URL ||
+    process.env.DEPLOY_PRIME_URL ||
+    process.env.URL ||
+    (command === 'build'
+      ? buildBase === '/'
+        ? '' // manual/offline build: leave root-relative tags until SITE_URL is set
+        : 'https://milanorezaee2.github.io/Modara'
+      : 'http://localhost:5173')
+  ).replace(/\/+$/, '');
+
+  const siteMeta = {
+    name: 'modara-site-meta',
+    transformIndexHtml(html: string) {
+      return html.replaceAll('__SITE_URL__', siteUrl);
+    },
+  };
+
   return {
     // The dev server always runs at "/", while the production build defaults to
     // "/Modara/" because GitHub Pages serves this repository under that sub path.
     // Build with BASE_PATH=/ when deploying to a custom domain or root host.
     base: command === 'build' ? process.env.BASE_PATH ?? '/Modara/' : '/',
-    plugins: [backendBoundary, react()],
+    plugins: [backendBoundary, siteMeta, react()],
     optimizeDeps: {
       // Pre-bundling Lucide is essential in dev: otherwise the browser walks
       // its ESM barrel file and requests well over a thousand icon modules.
