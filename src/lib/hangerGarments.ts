@@ -36,6 +36,28 @@ export const hangerGarments: Record<string, HangerGarment> = {
   'basic-tshirt-black-men': { image: '/images/hangers/basic-tshirt-black-men.webp', hex: '#191919', aspect: 0.798 },
 };
 
+/**
+ * Side profiles: the same garments photographed hanging in profile, exactly
+ * how they read on a packed rail. Only these are shown edge-on; the rest keep
+ * their front cut-out until their profile is shot.
+ */
+export const sideGarments: Record<string, HangerGarment> = {
+  'denim-jacket-men': { image: '/images/hangers-side/denim-jacket-men.webp', hex: '#2a3440', aspect: 0.294 },
+  'hoodie-blush-women': { image: '/images/hangers-side/hoodie-blush-women.webp', hex: '#d9c0b9', aspect: 0.313 },
+  'hoodie-charcoal-men': { image: '/images/hangers-side/hoodie-charcoal-men.webp', hex: '#494848', aspect: 0.29 },
+  'knit-sweater-gray-men': { image: '/images/hangers-side/knit-sweater-gray-men.webp', hex: '#9f9d99', aspect: 0.212 },
+  'midi-dress-floral-women': { image: '/images/hangers-side/midi-dress-floral-women.webp', hex: '#adafa4', aspect: 0.208 },
+  'satin-blazer-black-women': { image: '/images/hangers-side/satin-blazer-black-women.webp', hex: '#2b2b2b', aspect: 0.273 },
+  'silk-blouse-cream-women': { image: '/images/hangers-side/silk-blouse-cream-women.webp', hex: '#d3c9b4', aspect: 0.279 },
+  'trench-coat-camel-women': { image: '/images/hangers-side/trench-coat-camel-women.webp', hex: '#bda992', aspect: 0.225 },
+  'wool-blazer-navy-men': { image: '/images/hangers-side/wool-blazer-navy-men.webp', hex: '#222635', aspect: 0.248 },
+};
+
+/** The profile of a garment, when one has been shot. */
+export function sideFor(slug: string): HangerGarment | undefined {
+  return sideGarments[slug];
+}
+
 /** True when a product has a real hanger cut-out, i.e. it hangs as itself. */
 export function hangerFor(slug: string): HangerGarment | undefined {
   return hangerGarments[slug];
