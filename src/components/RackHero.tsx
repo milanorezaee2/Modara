@@ -25,15 +25,9 @@ type RackItem = {
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /** The cut-outs are all 520px tall; the rail shows them at this height. */
-const PIECE_HEIGHT = 'clamp(210px, 30vh, 300px)';
-/**
- * The camera stands to the side of the rail: garments hang turned away from
- * the viewer, so the rack reads as one dense row of narrow profiles. Hovering
- * (or focusing) swings that one garment round to face you.
- */
-const SIDE_ANGLE = 72;
-/** cos(72°) — the width a side-on garment still takes up on screen. */
-const SIDE_PROJECTION = Math.cos((SIDE_ANGLE * Math.PI) / 180);
+const PIECE_HEIGHT = 'clamp(200px, 27vh, 286px)';
+/** Air between two hangers on the rail. */
+const PIECE_GAP = 6;
 
 function withAlpha(hex: string, alpha: number): string {
   const value = hex.replace('#', '');
@@ -69,6 +63,8 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [canScrollMore, setCanScrollMore] = useState(false);
+  const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false, lastX: 0 });
+  const suppressClick = useRef(false);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('modara:hero-theme', { detail: 'light' }));
@@ -133,6 +129,44 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
     };
   }, [updateScrollHints, items.length]);
 
+  /**
+   * Desktop readers drag the rack like a real rail. Touch and trackpads keep
+   * native scrolling; this only adds mouse dragging.
+   */
+  const onPointerDown = (event: React.PointerEvent<HTMLUListElement>) => {
+    if (event.pointerType !== 'mouse') return;
+    const track = trackRef.current;
+    if (!track) return;
+    drag.current = {
+      active: true,
+      startX: event.clientX,
+      startLeft: track.scrollLeft,
+      moved: false,
+      lastX: event.clientX,
+    };
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLUListElement>) => {
+    const track = trackRef.current;
+    if (!track || !drag.current.active) return;
+    const delta = event.clientX - drag.current.startX;
+    if (Math.abs(delta) > 4) drag.current.moved = true;
+    track.scrollLeft = drag.current.startLeft - delta;
+
+    /* hangers lean into the direction they are being pushed, then settle */
+    const velocity = event.clientX - drag.current.lastX;
+    drag.current.lastX = event.clientX;
+    const lean = Math.max(-3, Math.min(3, velocity * 0.4));
+    track.style.setProperty('--rack-lean', `${lean.toFixed(2)}deg`);
+  };
+
+  const onPointerUp = () => {
+    if (!drag.current.active) return;
+    suppressClick.current = drag.current.moved;
+    drag.current.active = false;
+    trackRef.current?.style.setProperty('--rack-lean', '0deg');
+  };
+
   return (
     <section
       aria-label="رگال لباس مُدارا"
@@ -170,7 +204,19 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           <ul
             ref={trackRef}
             aria-label="لباس‌های مُدارا روی رگال"
-            className="scrollbar-hide -mx-4 flex items-start gap-0 overflow-x-auto px-4 pb-2 pt-0 sm:mx-0 sm:px-0 [perspective:1400px] [perspective-origin:50%_22%]"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onPointerLeave={onPointerUp}
+            onClickCapture={(event) => {
+              /* a drag must not open a product page */
+              if (!suppressClick.current) return;
+              suppressClick.current = false;
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            className="scrollbar-hide -mx-4 flex cursor-grab select-none items-start overflow-x-auto px-4 pb-4 pt-0 active:cursor-grabbing sm:mx-0 sm:px-0"
             style={{ '--piece-h': PIECE_HEIGHT } as CSSProperties}
           >
             {loading &&
@@ -178,10 +224,11 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                 <li
                   key={`skeleton-${index}`}
                   aria-hidden="true"
-                  className="shrink-0 animate-pulse rounded-[10px] bg-[#ded6c8] first:ms-0 ms-[2px]"
+                  className="shrink-0 animate-pulse rounded-[12px] bg-[#ded6c8]"
                   style={{
-                    width: `calc(var(--piece-h) * 0.75 * ${SIDE_PROJECTION} + 8px)`,
+                    width: `calc(var(--piece-h) * 0.72)`,
                     height: PIECE_HEIGHT,
+                    marginInlineStart: index === 0 ? 0 : PIECE_GAP,
                   }}
                 />
               ))}
@@ -189,17 +236,20 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             {!loading &&
               items.map((item, index) => {
                 const isActive = item.id === activeItem?.id;
-                /* the layout keeps the side-on footprint, so the row stays dense */
-                const slotWidth = `calc(var(--piece-h) * ${item.aspect} * ${SIDE_PROJECTION} + 10px)`;
 
                 return (
                   <li
                     key={item.id}
-                    className="relative shrink-0 first:ms-0"
+                    className="rack-drop relative shrink-0"
                     style={{
-                      width: slotWidth,
+                      width: `calc(var(--piece-h) * ${item.aspect})`,
                       height: PIECE_HEIGHT,
-                      zIndex: isActive ? 30 : 1,
+                      marginInlineStart: index === 0 ? 0 : PIECE_GAP,
+                      animationDelay: `${index * 65}ms`,
+                      zIndex: isActive ? 20 : 1,
+                      transform: 'rotate(var(--rack-lean, 0deg))',
+                      transformOrigin: 'top center',
+                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   >
                     <button
@@ -212,56 +262,45 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                         setActiveId(item.id);
                         onNavigate('product', item.slug);
                       }}
-                      className="group/piece absolute inset-y-0 start-1/2 block -translate-x-1/2 outline-none"
-                      style={{ width: `calc(var(--piece-h) * ${item.aspect})` }}
+                      className="group/piece relative block h-full w-full outline-none"
                     >
                       {/* the only thing a hover adds: a soft glow behind the garment */}
                       <span
                         aria-hidden="true"
-                        className={`pointer-events-none absolute -inset-x-8 -top-4 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_32%,rgba(255,250,238,0.98),rgba(255,240,212,0.42)_56%,transparent_74%)] blur-md transition-opacity duration-500 ${
+                        className={`pointer-events-none absolute -inset-x-6 -top-3 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_32%,rgba(255,250,238,0.98),rgba(255,240,212,0.42)_56%,transparent_74%)] blur-md transition-opacity duration-500 ${
                           isActive ? 'opacity-100' : 'opacity-0'
                         }`}
                       />
 
-                      {/* the garment itself, on its wooden hanger, seen from the side */}
+                      {/* the real garment, on its wooden hanger, swinging on the rail */}
                       <span
-                        className="absolute inset-0 block transition-transform duration-500 ease-out"
-                        style={{
-                          transform: isActive
-                            ? 'rotateY(0deg) translateY(-5px)'
-                            : `rotateY(${SIDE_ANGLE}deg)`,
-                          transformOrigin: '50% 22%',
-                          transformStyle: 'preserve-3d',
-                          willChange: 'transform',
-                        }}
+                        className="rack-sway block h-full w-full"
+                        style={
+                          {
+                            '--rack-sway-delay': `${(index % 7) * 0.55}s`,
+                            '--rack-sway-duration': `${6.2 + (index % 5) * 0.9}s`,
+                          } as CSSProperties
+                        }
                       >
-                        <img
-                          src={asset(item.image)}
-                          alt=""
-                          aria-hidden="true"
-                          loading={index < 17 ? 'eager' : 'lazy'}
-                          decoding="async"
-                          draggable={false}
-                          className={`h-full w-full select-none object-contain object-top transition-[filter,opacity] duration-500 ${
-                            isActive
-                              ? 'opacity-100 drop-shadow-[0_30px_30px_rgba(56,42,22,0.3)]'
-                              : 'opacity-[0.97] drop-shadow-[0_16px_18px_rgba(56,42,22,0.22)]'
-                          }`}
-                        />
-
-                        {/* a side-on garment is only lit at the edge nearest the light */}
                         <span
-                          aria-hidden="true"
-                          className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${
-                            isActive ? 'opacity-0' : 'opacity-100'
-                          } bg-[linear-gradient(90deg,rgba(28,21,12,0.34)_0%,rgba(28,21,12,0.08)_16%,rgba(255,249,236,0.16)_72%,rgba(255,252,244,0.38)_100%)]`}
-                        />
-                        {!isActive && (
-                          <span
+                          className={`block h-full w-full origin-top transition-transform duration-500 ease-out group-hover/piece:-translate-y-2 group-hover/piece:scale-[1.035] ${
+                            isActive ? '-translate-y-1' : ''
+                          }`}
+                        >
+                          <img
+                            src={asset(item.image)}
+                            alt=""
                             aria-hidden="true"
-                            className="pointer-events-none absolute inset-y-0 start-0 w-[3px] rounded-s-[2px] bg-[linear-gradient(90deg,rgba(24,17,8,0.5),transparent)]"
+                            loading={index < 17 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            draggable={false}
+                            className={`h-full w-full select-none object-contain object-top transition-[filter] duration-500 ${
+                              isActive
+                                ? 'drop-shadow-[0_30px_30px_rgba(56,42,22,0.32)]'
+                                : 'drop-shadow-[0_16px_18px_rgba(56,42,22,0.2)]'
+                            }`}
                           />
-                        )}
+                        </span>
                       </span>
                     </button>
                   </li>

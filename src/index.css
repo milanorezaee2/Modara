@@ -440,3 +440,48 @@
     animation: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Home rack: garments hang on one rail and swing a little, like cloth.
+ * Each piece keeps its own rhythm; the pivot sits at the hanger hook so
+ * the hem travels the most.
+ * ------------------------------------------------------------------ */
+@keyframes rackDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rackSway {
+  0%,
+  100% {
+    transform: rotate(-0.6deg);
+  }
+  50% {
+    transform: rotate(0.6deg);
+  }
+}
+
+.rack-drop {
+  /* backwards, not both: the inline lean transform must win once hanging */
+  animation: rackDrop 0.85s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.rack-sway {
+  transform-origin: top center;
+  animation: rackSway var(--rack-sway-duration, 7s) ease-in-out infinite;
+  animation-delay: var(--rack-sway-delay, 0s);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rack-drop,
+  .rack-sway {
+    animation: none !important;
+  }
+}
