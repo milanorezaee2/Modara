@@ -84,6 +84,20 @@ export function getNewestProducts(limit: number): Promise<Product[]> {
   });
 }
 
+/**
+ * The whole catalogue in one query — used by the home rack, which needs every
+ * product at once (newest first). Cached like every other catalogue read.
+ */
+export function getAllProducts(): Promise<Product[]> {
+  return cachedQuery('products:all', async () => {
+    const { data } = await supabase
+      .from('products')
+      .select(PRODUCT_CARD_COLUMNS)
+      .order('created_at', { ascending: false });
+    return (data ?? []) as Product[];
+  });
+}
+
 export function getProductsBySlugs(slugs: readonly string[]): Promise<ProductPreview[]> {
   const key = [...slugs].sort().join('|');
   return cachedQuery(`products:slugs:${key}`, async () => {

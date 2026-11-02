@@ -8,7 +8,7 @@ import {
 } from '../lib/catalog';
 import { imageSrcSet, optimizedAsset } from '../lib/format';
 import ProductCard from '../components/ProductCard';
-import RailHero from '../components/RailHero';
+import RackHero from '../components/RackHero';
 import TrustMarquee from '../components/home/TrustMarquee';
 import DeferredMount from '../components/DeferredMount';
 
@@ -166,8 +166,8 @@ export default function Home({ onNavigate }: HomeProps) {
 
   return (
     <div>
-      {/* Wardrobe-rail hero: the catalogue hanging on one brass rail */}
-      <RailHero onNavigate={onNavigate} />
+      {/* Rack hero: the whole catalogue, edge-on, with a full stage on hover */}
+      <RackHero onNavigate={onNavigate} />
 
       {/* Trust marquee */}
       <TrustMarquee />
