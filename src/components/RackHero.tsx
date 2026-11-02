@@ -29,8 +29,12 @@ type RackItem = {
 };
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const PIECE_HEIGHT = 'clamp(200px, 27vh, 288px)';
-const PIECE_GAP = 4;
+/** Air between two hangers. */
+const PIECE_GAP = 6;
+/** Never shrink a piece below this; below it the row scrolls instead. */
+const MIN_PIECE_HEIGHT = 104;
+/** And never let a short catalogue stretch them into giants. */
+const MAX_PIECE_HEIGHT = 300;
 
 export default function RackHero({ onNavigate }: RackHeroProps) {
   const reduceMotion = useReducedMotion();
@@ -41,6 +45,9 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   const [hasScrolled, setHasScrolled] = useState(false);
   const [canScrollMore, setCanScrollMore] = useState(false);
   const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false });
+  const shellRef = useRef<HTMLDivElement>(null);
+  /** Piece height that makes the whole line fit the row exactly. */
+  const [rackSize, setRackSize] = useState({ height: 240, fits: true });
   const suppressClick = useRef(false);
 
   useEffect(() => {
@@ -70,7 +77,9 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               categoryName: categoryNames.get(product.category_id ?? '') ?? 'کالکشن',
             } satisfies RackItem;
           })
-          .filter((item): item is RackItem => item !== null);
+          .filter((item): item is RackItem => item !== null)
+          /* a calm rhythm: silhouettes widen smoothly along the rail */
+          .sort((a, b) => a.aspect - b.aspect);
         setItems(hanging);
         setActiveId((current) => current ?? hanging[0]?.id ?? null);
       })
@@ -84,6 +93,31 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Fit the line to the row: the sum of every garment's aspect ratio decides
+   * the height, so 17 different silhouettes share the width perfectly and
+   * nothing is cropped or scrolled on a normal screen.
+   */
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || !items.length) return;
+
+    const measure = () => {
+      const width = shell.clientWidth;
+      const gaps = PIECE_GAP * Math.max(0, items.length - 1);
+      const totalAspect = items.reduce((sum, item) => sum + item.aspect, 0);
+      if (!width || !totalAspect) return;
+      const ideal = (width - gaps) / totalAspect;
+      const height = Math.min(MAX_PIECE_HEIGHT, Math.max(MIN_PIECE_HEIGHT, ideal));
+      setRackSize({ height, fits: ideal >= MIN_PIECE_HEIGHT });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, [items]);
 
   const activeIndex = items.findIndex((item) => item.id === activeId);
   const activeItem = activeIndex >= 0 ? items[activeIndex] : (items[0] ?? null);
@@ -229,7 +263,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         }}
       />
 
-      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-8">
+      <div ref={shellRef} className="mx-auto w-full max-w-[1440px] px-4 sm:px-8">
         {/* Headline */}
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 14 }}
@@ -259,7 +293,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         </motion.div>
 
         {/* Product card: the piece you are on, with its full details */}
-        <div className="mx-auto mt-9 w-full max-w-4xl sm:mt-10">
+        <div className="mx-auto mt-8 w-full max-w-3xl sm:mt-9">
           <AnimatePresence mode="wait" initial={false}>
             {activeItem && (
               <motion.article
@@ -268,16 +302,16 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
                 transition={{ duration: 0.4, ease: EASE }}
-                className="relative overflow-hidden rounded-[24px] border border-[#d9cdb6] bg-[#fdfaf4]/80 shadow-[0_30px_60px_-40px_rgba(45,33,18,0.65)] backdrop-blur-sm"
+                className="relative overflow-hidden rounded-[20px] border border-[#d9cdb6] bg-[#fdfaf4]/80 shadow-[0_26px_50px_-38px_rgba(45,33,18,0.6)] backdrop-blur-sm"
                 aria-live="polite"
               >
-                <div className="grid gap-0 sm:grid-cols-[184px_minmax(0,1fr)]">
+                <div className="grid gap-0 sm:grid-cols-[268px_minmax(0,1fr)]">
                   {/* phone: the product photo as a wide crop above the details */}
-                  <div className="relative h-36 w-full sm:hidden">
+                  <div className="relative h-44 w-full sm:hidden">
                     <img
                       src={optimizedAsset(activeItem.product.image_url, 480)}
                       srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
-                      sizes="(min-width: 640px) 184px, 100vw"
+                      sizes="(min-width: 640px) 268px, 100vw"
                       alt={activeItem.product.name}
                       className="h-full w-full object-cover"
                       decoding="async"
@@ -293,9 +327,9 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     <img
                       src={optimizedAsset(activeItem.product.image_url, 480)}
                       srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
-                      sizes="184px"
+                      sizes="268px"
                       alt={activeItem.product.name}
-                      className="h-full min-h-[220px] w-full object-cover"
+                      className="h-full min-h-[260px] w-full object-cover"
                       decoding="async"
                     />
                     <span
@@ -304,7 +338,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     />
                   </div>
 
-                  <div className="p-4 text-center sm:p-5 sm:text-right">
+                  <div className="flex flex-col justify-center p-3.5 text-center sm:p-4 sm:text-right">
                     <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-between">
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2e9d8] px-2.5 py-1 text-[10px] font-bold text-[#7d6636]">
                         <span
@@ -320,11 +354,11 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                       </span>
                     </div>
 
-                    <h2 className="mt-2.5 text-balance text-[clamp(1.05rem,2.2vw,1.5rem)] font-bold leading-snug text-[#241d14]">
+                    <h2 className="mt-2 text-balance text-[clamp(1rem,2vw,1.35rem)] font-bold leading-snug text-[#241d14]">
                       {activeItem.product.name}
                     </h2>
 
-                    <div className="mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11.5px] sm:justify-start">
+                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] sm:justify-start">
                       <span className="inline-flex items-center gap-1 font-bold text-[#3f3527]">
                         <Star className="h-3.5 w-3.5 fill-[#c0913f] text-[#c0913f]" aria-hidden="true" />
                         {new Intl.NumberFormat('fa-IR').format(
@@ -345,7 +379,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     </div>
 
                     {activeItem.product.description && (
-                      <p className="mx-auto mt-2.5 line-clamp-2 max-w-xl text-[12px] leading-6 text-[#6b6152] sm:mx-0">
+                      <p className="mx-auto mt-2 line-clamp-2 max-w-xl text-[11.5px] leading-5 text-[#6b6152] sm:mx-0">
                         {activeItem.product.description}
                       </p>
                     )}
@@ -353,7 +387,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     <button
                       type="button"
                       onClick={() => onNavigate('product', activeItem.slug)}
-                      className="group mt-3.5 inline-flex items-center justify-center gap-2 rounded-full bg-[#241d14] px-5 py-2.5 text-[12.5px] font-semibold text-[#f7f1e4] shadow-[0_16px_30px_-18px_rgba(36,29,20,0.9)] transition-all duration-300 hover:bg-[#3a2f20] active:scale-[0.98]"
+                      className="group mt-3 inline-flex items-center justify-center gap-2 self-center rounded-full bg-[#241d14] px-5 py-2.5 text-[12.5px] font-semibold text-[#f7f1e4] shadow-[0_16px_30px_-18px_rgba(36,29,20,0.9)] transition-all duration-300 hover:bg-[#3a2f20] active:scale-[0.98] sm:self-start"
                     >
                       مشاهدهٔ محصول
                       <ArrowLeft
@@ -396,8 +430,12 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               event.preventDefault();
               event.stopPropagation();
             }}
-            className="scrollbar-hide -mx-4 flex cursor-grab select-none items-start overflow-x-auto px-4 pb-2 pt-0 active:cursor-grabbing sm:mx-0 sm:px-0"
-            style={{ '--piece-h': PIECE_HEIGHT } as CSSProperties}
+            className={`scrollbar-hide -mx-4 flex select-none items-start px-4 pb-2 pt-0 sm:mx-0 sm:px-0 ${
+              rackSize.fits
+                ? 'justify-center overflow-x-visible'
+                : 'cursor-grab overflow-x-auto active:cursor-grabbing'
+            }`}
+            style={{ '--piece-h': `${rackSize.height}px` } as CSSProperties}
           >
             {loading &&
               Array.from({ length: 17 }).map((_, index) => (
@@ -406,8 +444,8 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                   aria-hidden="true"
                   className="shrink-0 animate-pulse rounded-[10px] bg-[#ded6c8]"
                   style={{
-                    width: `calc(var(--piece-h) * ${index < 9 ? 0.26 : 0.62})`,
-                    height: PIECE_HEIGHT,
+                    width: `calc(var(--piece-h) * 0.26)`,
+                    height: 'var(--piece-h)',
                     marginInlineStart: index === 0 ? 0 : PIECE_GAP,
                   }}
                 />
@@ -416,7 +454,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             {!loading &&
               items.map((item, index) => {
                 const isActive = item.id === activeItem?.id;
-                const slotWidth = `calc(var(--piece-h) * ${item.aspect} + 8px)`;
+                const slotWidth = `calc(var(--piece-h) * ${item.aspect})`;
 
                 return (
                   <li
@@ -425,7 +463,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     className="rack-drop relative shrink-0"
                     style={{
                       width: slotWidth,
-                      height: PIECE_HEIGHT,
+                      height: 'var(--piece-h)',
                       marginInlineStart: index === 0 ? 0 : PIECE_GAP,
                       animationDelay: `${index * 65}ms`,
                       zIndex: isActive ? 30 : 1,
@@ -498,13 +536,13 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           <div
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-0 left-0 w-12 bg-[linear-gradient(90deg,#efeae1,rgba(239,234,225,0))] transition-opacity duration-300 ${
-              canScrollMore ? 'opacity-100' : 'opacity-0'
+              canScrollMore && !rackSize.fits ? 'opacity-100' : 'opacity-0'
             }`}
           />
 
           {/* rack controls */}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 ${rackSize.fits ? 'hidden sm:flex' : ''}`}>
               <button
                 type="button"
                 onClick={() => nudgeTrack(1)}
