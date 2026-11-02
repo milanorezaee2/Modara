@@ -233,7 +233,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   return (
     <section
       aria-label="رگال لباس مُدارا"
-      className="relative isolate overflow-hidden bg-[#efeae1] pb-10 pt-24 sm:pb-12 sm:pt-28"
+      className="relative isolate overflow-hidden bg-[#efeae1] pb-12 pt-24 sm:pb-16 sm:pt-28"
     >
       {/* Studio light */}
       <div
@@ -264,37 +264,60 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
       />
 
       <div ref={shellRef} className="mx-auto w-full max-w-[1440px] px-4 sm:px-8">
-        {/* Headline */}
+        {/* Headline: one centred column, opened and closed by a hairline */}
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.85, ease: EASE }}
-          className="mx-auto max-w-3xl text-center"
+          className="mx-auto flex w-full max-w-3xl flex-col items-center text-center"
         >
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10.5px] font-bold text-[#9a8358] sm:text-[11.5px]">
-            <span className="h-px w-8 bg-[#bda77c] sm:w-12" aria-hidden="true" />
-            <span>کالکشن پاییز مُدارا</span>
-            <span className="h-1 w-1 rounded-full bg-[#c3ac81]" aria-hidden="true" />
-            <span>{loading ? 'در حال چیدن…' : `${new Intl.NumberFormat('fa-IR').format(items.length)} قطعه`}</span>
-            <span className="h-px w-8 bg-[#bda77c] sm:w-12" aria-hidden="true" />
+          {/* kicker: a small label on a hairline that opens out to both edges */}
+          <div className="flex w-full items-center gap-3 sm:gap-4">
+            <span
+              aria-hidden="true"
+              className="h-px flex-1 bg-[linear-gradient(90deg,rgba(189,167,124,0),#bda77c)]"
+            />
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#cdbb99] bg-[#fdfaf4]/80 px-3 py-1 text-[10px] font-bold text-[#8a7344] sm:text-[10.5px]">
+              کالکشن پاییز مُدارا
+              <span aria-hidden="true" className="h-1 w-1 rounded-full bg-[#c3ac81]" />
+              <span className="tabular-nums">
+                {loading
+                  ? 'در حال چیدن…'
+                  : `${new Intl.NumberFormat('fa-IR').format(items.length)} قطعه`}
+              </span>
+            </span>
+            <span
+              aria-hidden="true"
+              className="h-px flex-1 bg-[linear-gradient(270deg,rgba(189,167,124,0),#bda77c)]"
+            />
           </div>
 
-          <h1 className="mt-5 text-balance text-[clamp(1.6rem,4.4vw,3.05rem)] font-extrabold leading-[1.3] text-[#241d14]">
-            همه‌ی لباس‌ها، از بغل روی یک رگال
-            <span className="mt-1 block text-[#8b6f3e] sm:mt-2">
-              همان‌طور که در بوتیک چیده می‌شوند؛ هر قطعه که جلو بیاید، کمی از ریل بلند می‌شود
-            </span>
+          <h1 className="mt-6 text-balance text-[clamp(1.55rem,3.9vw,2.85rem)] font-extrabold leading-[1.32] text-[#241d14]">
+            همه‌ی لباس‌ها، از بغل، روی یک رگال
           </h1>
 
-          <p className="mx-auto mt-4 max-w-xl text-balance text-[13px] leading-6 text-[#6b6152] sm:text-sm sm:leading-7">
-            کت، ترنچ‌کت، هودی و بافت‌ها؛ عکسِ واقعیِ هر لباس در حالت آویزان و از بغل، همان‌طور
-            که پارچه روی جالباسی می‌افتد. روی هر قطعه بایستید تا بزرگ‌تر و روشن‌تر شود.
+          <p className="mt-3 text-balance text-[clamp(0.9rem,1.5vw,1.1rem)] font-bold leading-relaxed text-[#8b6f3e]">
+            همان‌طور که در بوتیک چیده می‌شوند
           </p>
+
+          <p className="mt-5 max-w-[36rem] text-balance text-[12.5px] leading-6 text-[#6b6152] sm:text-[13px] sm:leading-7">
+            کت، ترنچ‌کت، هودی و بافت‌ها؛ عکسِ واقعیِ هر لباس در حالت آویزان و از بغل، همان‌طور
+            که پارچه روی جالباسی می‌افتد. هر قطعه که جلو بیاید کمی از ریل بلند می‌شود، و
+            پارچه‌های تمام‌پشم با برشِ تیلور و دوختِ محدود، انتخاب‌شده برای پوشیدنِ هر روز.
+          </p>
+
+          {/* a quiet rule that closes the title block and opens the card */}
+          <div aria-hidden="true" className="mt-8 flex w-full items-center gap-3">
+            <span className="h-px flex-1 bg-[linear-gradient(90deg,rgba(207,189,160,0),#cfbda0)]" />
+            <span className="h-1.5 w-1.5 rotate-45 bg-[#bda77c]" />
+            <span className="h-px flex-1 bg-[linear-gradient(270deg,rgba(207,189,160,0),#cfbda0)]" />
+          </div>
         </motion.div>
 
         {/* Product card: the piece you are on, with its full details */}
-        <div className="mx-auto mt-8 w-full max-w-3xl sm:mt-9">
-          <AnimatePresence mode="wait" initial={false}>
+        <div className="relative mx-auto mt-6 w-full max-w-3xl sm:mt-7 sm:min-h-[262px]">
+          {/* the outgoing card leaves the flow, so the rail never jumps */}
+          <AnimatePresence mode="popLayout" initial={false}>
             {activeItem && (
               <motion.article
                 key={activeItem.id}
@@ -379,7 +402,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     </div>
 
                     {activeItem.product.description && (
-                      <p className="mx-auto mt-2 line-clamp-2 max-w-xl text-[11.5px] leading-5 text-[#6b6152] sm:mx-0">
+                      <p className="mx-auto mt-2 line-clamp-2 min-h-[2.5rem] max-w-xl text-[11.5px] leading-5 text-[#6b6152] sm:mx-0">
                         {activeItem.product.description}
                       </p>
                     )}
@@ -403,7 +426,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         </div>
 
         {/* The rail, and the garments on it */}
-        <div className="relative mt-8 sm:mt-10">
+        <div className="relative mt-9 sm:mt-10">
           <div
             className="pointer-events-none absolute inset-x-0 top-[6px] z-20 h-[16px]"
             aria-hidden="true"
@@ -430,7 +453,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               event.preventDefault();
               event.stopPropagation();
             }}
-            className={`scrollbar-hide -mx-4 flex select-none items-start px-4 pb-2 pt-0 sm:mx-0 sm:px-0 ${
+            className={`scrollbar-hide -mx-4 flex select-none items-start px-4 pb-3 pt-0 sm:mx-0 sm:px-0 ${
               rackSize.fits
                 ? 'justify-center overflow-x-visible'
                 : 'cursor-grab overflow-x-auto active:cursor-grabbing'
@@ -540,59 +563,67 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             }`}
           />
 
-          {/* rack controls */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <div className={`flex items-center gap-2 ${rackSize.fits ? 'hidden sm:flex' : ''}`}>
+          {/* the rail\'s meter: one quiet, symmetric line under the pieces */}
+          <div className="mx-auto mt-4 flex w-full max-w-3xl items-center gap-3 sm:mt-5">
+            <span
+              aria-hidden="true"
+              className="w-5 shrink-0 text-center text-[9.5px] font-bold tabular-nums text-[#a99c86]"
+            >
+              {new Intl.NumberFormat('fa-IR').format(1)}
+            </span>
+            <span
+              role="progressbar"
+              aria-label="جای قطعهٔ فعال روی رگال"
+              aria-valuemin={1}
+              aria-valuemax={Math.max(items.length, 1)}
+              aria-valuenow={Math.max(activeIndex, 0) + 1}
+              className="relative h-[3px] flex-1 overflow-hidden rounded-full bg-[#dccfb6]"
+            >
+              <span
+                className="absolute inset-y-0 right-0 rounded-full bg-[linear-gradient(90deg,#c69a5b,#a3783a)] transition-[width] duration-500"
+                style={{
+                  width: `${
+                    items.length > 1
+                      ? Math.max(4, ((Math.max(activeIndex, 0) + 1) / items.length) * 100)
+                      : 100
+                  }%`,
+                }}
+              />
+            </span>
+            <span
+              aria-hidden="true"
+              className="w-5 shrink-0 text-center text-[9.5px] font-bold tabular-nums text-[#a99c86]"
+            >
+              {new Intl.NumberFormat('fa-IR').format(items.length)}
+            </span>
+          </div>
+
+          <p className="mx-auto mt-3 hidden max-w-md text-center text-[10.5px] text-[#a99c86] sm:block">
+            هاور، یا کلیدهای ← →، قطعه را جلو می‌آورند
+          </p>
+
+          {/* phones only: the line really does not fit, so it can be pushed */}
+          {!rackSize.fits && (
+            <div className="mt-3 flex items-center justify-center gap-3 sm:hidden">
               <button
                 type="button"
                 onClick={() => nudgeTrack(1)}
                 aria-label="قطعه‌های قبلی"
-                className={`flex h-8 w-8 items-center justify-center rounded-full border border-[#d6c9ae] bg-[#fdfaf2]/85 text-[#6b5d45] transition-all hover:border-[#a3783a] ${
-                  hasScrolled ? 'opacity-100' : 'opacity-30'
-                }`}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d6c9ae] bg-[#fdfaf2]/85 text-[#6b5d45] active:scale-95"
               >
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
+              <span className="text-[9.5px] text-[#a99c86]">یا رگال را بکشید</span>
               <button
                 type="button"
                 onClick={() => nudgeTrack(-1)}
                 aria-label="قطعه‌های بعدی"
-                className={`flex h-8 w-8 items-center justify-center rounded-full border border-[#d6c9ae] bg-[#fdfaf2]/85 text-[#6b5d45] transition-all hover:border-[#a3783a] ${
-                  canScrollMore ? 'opacity-100' : 'opacity-30'
-                }`}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d6c9ae] bg-[#fdfaf2]/85 text-[#6b5d45] active:scale-95"
               >
                 <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
-
-            <div className="flex min-w-[190px] flex-col items-center gap-1.5">
-              <span className="text-[10.5px] font-semibold text-[#8d8271]">
-                {activeIndex >= 0
-                  ? `قطعهٔ ${new Intl.NumberFormat('fa-IR').format(activeIndex + 1)} از ${new Intl.NumberFormat('fa-IR').format(items.length)}`
-                  : 'رگال در حال چیدن است'}
-              </span>
-              <span className="relative h-[3px] w-full overflow-hidden rounded-full bg-[#d8cbb2]">
-                <span
-                  className="absolute inset-y-0 right-0 rounded-full bg-[#a3783a] transition-[width] duration-500"
-                  style={{
-                    width: `${
-                      items.length > 1
-                        ? Math.max(4, ((activeIndex + 1) / items.length) * 100)
-                        : 100
-                    }%`,
-                  }}
-                />
-              </span>
-            </div>
-
-            <p className="text-[10px] text-[#a99c86]">
-              هاور، لمس یا کلیدهای ← → قطعه را جلو می‌آورند
-            </p>
-          </div>
-
-          <p className="mx-auto mt-6 max-w-md text-center text-[12px] leading-6 text-[#6b6152]">
-            پارچه‌های تمام‌پشم، برشِ تیلور و دوختِ محدود؛ انتخاب‌شده برای پوشیدنِ هر روز.
-          </p>
+          )}
         </div>
       </div>
     </section>
