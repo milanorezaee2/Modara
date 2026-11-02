@@ -13,6 +13,7 @@ import { getAllProducts, getCategories } from '../lib/catalog';
 import type { Category, Product } from '../lib/supabase';
 import { asset, formatPrice, imageSrcSet, optimizedAsset } from '../lib/format';
 import { toneFor } from '../lib/productPalette';
+import { hangerFor } from '../lib/hangerGarments';
 
 type RackHeroProps = {
   onNavigate: (view: string, param?: string) => void;
@@ -217,11 +218,16 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   }, [visible]);
 
   const activeProduct = visible.find((product) => product.id === activeId) ?? visible[0] ?? null;
+  const activeHanger = activeProduct ? hangerFor(activeProduct.slug) : undefined;
   const activeIndex = activeProduct ? (indexById.get(activeProduct.id) ?? -1) : -1;
   const activeCategoryMeta = activeProduct
     ? categories.find((category) => category.id === activeProduct.category_id)
     : undefined;
-  const activeTone = activeProduct ? toneFor(activeProduct.image_url) : null;
+  const activeTone = activeHanger
+    ? { hex: activeHanger.hex, l: 50 }
+    : activeProduct
+      ? toneFor(activeProduct.image_url)
+      : null;
   const tint = activeTone
     ? withAlpha(activeTone.hex, 0.26)
     : (CATEGORY_TINT[activeCategoryMeta?.slug ?? ''] ?? 'rgba(176,132,64,0.22)');
@@ -417,19 +423,37 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               <div className="absolute inset-0 overflow-hidden rounded-[22px] bg-[#e7e1d6] shadow-[0_44px_80px_-48px_rgba(45,33,18,0.75),0_2px_0_rgba(255,255,255,0.65)_inset] ring-1 ring-[#d6c9b1]">
                 <AnimatePresence mode="popLayout" initial={false}>
                   {activeProduct ? (
-                    <motion.img
-                      key={activeProduct.id}
-                      initial={reduceMotion ? false : { opacity: 0, scale: 1.05, y: 8 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={reduceMotion ? undefined : { opacity: 0, scale: 1.015, y: -6 }}
-                      transition={{ duration: 0.55, ease: EASE }}
-                      src={optimizedAsset(activeProduct.image_url, 720)}
-                      srcSet={imageSrcSet(activeProduct.image_url, [480, 720])}
-                      sizes="(min-width: 1024px) 34vw, 86vw"
-                      alt={activeProduct.name}
-                      className="h-full w-full object-cover"
-                      decoding="async"
-                    />
+                    activeHanger ? (
+                      <motion.div
+                        key={`${activeProduct.id}-hanger`}
+                        initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 1.01 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+                        transition={{ duration: 0.55, ease: EASE }}
+                        className="flex h-full w-full items-start justify-center bg-[radial-gradient(120%_80%_at_50%_0%,#fdfaf3,#efe8dc_62%,#e4dbcb)] px-4 pt-5"
+                      >
+                        <img
+                          src={asset(activeHanger.image)}
+                          alt={activeProduct.name}
+                          className="max-h-full w-auto max-w-full select-none object-contain object-top drop-shadow-[0_26px_30px_rgba(56,42,22,0.22)]"
+                          decoding="async"
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.img
+                        key={activeProduct.id}
+                        initial={reduceMotion ? false : { opacity: 0, scale: 1.05, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={reduceMotion ? undefined : { opacity: 0, scale: 1.015, y: -6 }}
+                        transition={{ duration: 0.55, ease: EASE }}
+                        src={optimizedAsset(activeProduct.image_url, 720)}
+                        srcSet={imageSrcSet(activeProduct.image_url, [480, 720])}
+                        sizes="(min-width: 1024px) 34vw, 86vw"
+                        alt={activeProduct.name}
+                        className="h-full w-full object-cover"
+                        decoding="async"
+                      />
+                    )
                   ) : (
                     <div className="h-full w-full animate-pulse bg-[#ded6c8]" aria-hidden="true" />
                   )}
@@ -564,7 +588,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               ref={trackRef}
               aria-label="همهٔ محصولات روی رگال"
               onKeyDown={onRackKeyDown}
-              className="scrollbar-hide -mx-4 flex snap-x snap-mandatory items-start gap-0 overflow-x-auto px-4 pb-7 pt-1 sm:mx-0 sm:px-0 [perspective:1400px] [perspective-origin:50%_14%]"
+              className="scrollbar-hide -mx-4 flex snap-x snap-mandatory items-start gap-0 overflow-x-auto px-4 pb-7 pt-0 sm:mx-0 sm:px-0 [perspective:1400px] [perspective-origin:50%_14%]"
               style={{ '--rack-w': 'clamp(48px, 5.2vw, 64px)' } as CSSProperties}
             >
               {loading &&
@@ -572,7 +596,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                   <li
                     key={`skeleton-${index}`}
                     aria-hidden="true"
-                    className="shrink-0 animate-pulse rounded-t-[12px] bg-[#ded6c8] first:ms-0 ms-[18px] sm:ms-[22px]"
+                    className="shrink-0 animate-pulse rounded-t-[12px] bg-[#ded6c8] first:ms-0 ms-[10px] sm:ms-[14px]"
                     style={{
                       width: 'var(--rack-w)',
                       height: `${HEIGHT_STEPS[index % HEIGHT_STEPS.length]}px`,
@@ -615,7 +639,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                       return (
                         <li
                           key={product.id}
-                          className="relative shrink-0 snap-center first:ms-0 ms-[18px] sm:ms-[22px]"
+                          className="relative shrink-0 snap-center first:ms-0 ms-[10px] sm:ms-[14px]"
                           style={
                             {
                               transform: isActive
@@ -646,91 +670,120 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                               }`}
                             />
 
-                            <Hanger active={isActive} />
-
-                            {/* the piece: a full-length garment seen edge-on */}
-                            <span
-                              className={`relative block transition-[box-shadow,filter] duration-500 ${
-                                isActive
-                                  ? 'shadow-[-16px_30px_38px_-30px_rgba(45,33,18,0.95),0_0_0_1px_rgba(163,120,58,0.9)]'
-                                  : 'shadow-[-10px_18px_26px_-24px_rgba(45,33,18,0.85)]'
-                              }`}
-                              style={
-                                {
-                                  width: 'var(--rack-w)',
-                                  height: `clamp(180px, 26vh, ${height}px)`,
-                                  borderRadius: '14px 14px 7px 7px',
-                                } as CSSProperties
+                            {(() => {
+                              const hanger = hangerFor(product.slug);
+                              if (hanger) {
+                                /* the real garment, on its own hanger */
+                                return (
+                                  <span
+                                    className={`relative block transition-transform duration-500 ${
+                                      isActive ? 'scale-[1.04]' : 'scale-100'
+                                    }`}
+                                    style={{ height: 'clamp(196px, 27vh, 316px)' }}
+                                  >
+                                    <img
+                                      src={asset(hanger.image)}
+                                      alt=""
+                                      aria-hidden="true"
+                                      loading={index < 26 ? 'eager' : 'lazy'}
+                                      decoding="async"
+                                      draggable={false}
+                                      className={`h-full w-auto max-w-none select-none object-contain object-top transition-[filter,opacity] duration-500 ${
+                                        isActive
+                                          ? 'opacity-100 drop-shadow-[0_26px_26px_rgba(56,42,22,0.3)]'
+                                          : 'opacity-[0.94] drop-shadow-[0_16px_18px_rgba(56,42,22,0.2)]'
+                                      }`}
+                                    />
+                                    {isActive && (
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] rounded-full"
+                                        style={{ backgroundColor: hanger.hex }}
+                                      />
+                                    )}
+                                  </span>
+                                );
                               }
-                            >
-                              <span
-                                className="absolute inset-0 overflow-hidden"
-                                style={{ borderRadius: '14px 14px 7px 7px' }}
-                              >
-                                <img
-                                  src={asset(rackSlice(product.image_url))}
-                                  alt=""
-                                  aria-hidden="true"
-                                  loading={index < 26 ? 'eager' : 'lazy'}
-                                  decoding="async"
-                                  draggable={false}
-                                  className={`h-full w-full select-none object-cover transition-[filter,transform] duration-500 ${
-                                    isActive
-                                      ? 'scale-[1.03] saturate-100'
-                                      : 'saturate-[0.9] group-hover/sliver:saturate-100'
-                                  }`}
-                                  style={{ objectPosition: '50% 46%' }}
-                                />
 
-                                {/* woven light down the side: the garment has an edge */}
-                                <span
-                                  aria-hidden="true"
-                                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.05)_28%,rgba(24,17,8,0.05)_64%,rgba(24,17,8,0.36)_100%)] mix-blend-soft-light"
-                                />
-                                {/* shoulder highlight where the hanger carries it */}
-                                <span
-                                  aria-hidden="true"
-                                  className="pointer-events-none absolute inset-x-0 top-0 h-[14px] bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0))]"
-                                />
-                                {/* hem shadow */}
-                                <span
-                                  aria-hidden="true"
-                                  className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-[linear-gradient(0deg,rgba(28,21,12,0.3),transparent)]"
-                                />
-                                {/* fabric thickness on the receding edge */}
-                                <span
-                                  aria-hidden="true"
-                                  className="pointer-events-none absolute inset-y-0 left-0 w-[7px] bg-[linear-gradient(90deg,rgba(36,29,20,0.45),rgba(36,29,20,0))]"
-                                />
-
-                                {/* the piece's own colour, as a selvedge line */}
-                                <span
-                                  aria-hidden="true"
-                                  className="pointer-events-none absolute inset-y-0 right-0 w-[3px] opacity-80"
-                                  style={{
-                                    background: `linear-gradient(180deg, ${tone.hex}, ${withAlpha(
-                                      tone.hex,
-                                      0.55,
-                                    )})`,
-                                  }}
-                                />
-
-                                <span
-                                  aria-hidden="true"
-                                  className={`pointer-events-none absolute inset-x-0 bottom-0 transition-all duration-500 ${
-                                    isActive ? 'h-[3px] bg-[#a3783a]' : 'h-[2px] bg-[#241d14]/10'
-                                  }`}
-                                />
-                              </span>
-
-                              {/* contact shadow on the shelf */}
-                              <span
-                                aria-hidden="true"
-                                className={`pointer-events-none absolute -bottom-[7px] left-1/2 h-[7px] -translate-x-1/2 rounded-full bg-[#241d14] blur-[4px] transition-all duration-500 ${
-                                  isActive ? 'w-[88%] opacity-40' : 'w-[64%] opacity-20'
-                                }`}
-                              />
-                            </span>
+                              /* departments without a cut-out yet keep the narrow edge-on slice */
+                              return (
+                                <>
+                                  <Hanger active={isActive} />
+                                  <span
+                                    className={`relative block transition-[box-shadow,filter] duration-500 ${
+                                      isActive
+                                        ? 'shadow-[-16px_30px_38px_-30px_rgba(45,33,18,0.95),0_0_0_1px_rgba(163,120,58,0.9)]'
+                                        : 'shadow-[-10px_18px_26px_-24px_rgba(45,33,18,0.85)]'
+                                    }`}
+                                    style={
+                                      {
+                                        width: 'var(--rack-w)',
+                                        height: `clamp(180px, 26vh, ${height}px)`,
+                                        borderRadius: '14px 14px 7px 7px',
+                                      } as CSSProperties
+                                    }
+                                  >
+                                    <span
+                                      className="absolute inset-0 overflow-hidden"
+                                      style={{ borderRadius: '14px 14px 7px 7px' }}
+                                    >
+                                      <img
+                                        src={asset(rackSlice(product.image_url))}
+                                        alt=""
+                                        aria-hidden="true"
+                                        loading={index < 26 ? 'eager' : 'lazy'}
+                                        decoding="async"
+                                        draggable={false}
+                                        className={`h-full w-full select-none object-cover transition-[filter,transform] duration-500 ${
+                                          isActive
+                                            ? 'scale-[1.03] saturate-100'
+                                            : 'saturate-[0.9] group-hover/sliver:saturate-100'
+                                        }`}
+                                        style={{ objectPosition: '50% 46%' }}
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.05)_28%,rgba(24,17,8,0.05)_64%,rgba(24,17,8,0.36)_100%)] mix-blend-soft-light"
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-x-0 top-0 h-[14px] bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0))]"
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-[linear-gradient(0deg,rgba(28,21,12,0.3),transparent)]"
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-y-0 left-0 w-[7px] bg-[linear-gradient(90deg,rgba(36,29,20,0.45),rgba(36,29,20,0))]"
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute inset-y-0 right-0 w-[3px] opacity-80"
+                                        style={{
+                                          background: `linear-gradient(180deg, ${tone.hex}, ${withAlpha(
+                                            tone.hex,
+                                            0.55,
+                                          )})`,
+                                        }}
+                                      />
+                                      <span
+                                        aria-hidden="true"
+                                        className={`pointer-events-none absolute inset-x-0 bottom-0 transition-all duration-500 ${
+                                          isActive ? 'h-[3px] bg-[#a3783a]' : 'h-[2px] bg-[#241d14]/10'
+                                        }`}
+                                      />
+                                    </span>
+                                    <span
+                                      aria-hidden="true"
+                                      className={`pointer-events-none absolute -bottom-[7px] left-1/2 h-[7px] -translate-x-1/2 rounded-full bg-[#241d14] blur-[4px] transition-all duration-500 ${
+                                        isActive ? 'w-[88%] opacity-40' : 'w-[64%] opacity-20'
+                                      }`}
+                                    />
+                                  </span>
+                                </>
+                              );
+                            })()}
 
                             {/* price whisper under the active piece */}
                             <span
