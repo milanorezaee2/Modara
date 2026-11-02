@@ -380,3 +380,63 @@
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Rail hero: garments on a wardrobe rail.
+ * Each piece keeps its own rhythm; the sway pivots at the hanger hook so
+ * the hem travels the most, exactly like fabric on a real rail.
+ * ------------------------------------------------------------------ */
+@keyframes railDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes railSway {
+  0%,
+  100% {
+    transform: rotate(-0.55deg);
+  }
+  50% {
+    transform: rotate(0.55deg);
+  }
+}
+
+@keyframes railSwayTag {
+  0%,
+  100% {
+    transform: rotate(-1.6deg);
+  }
+  50% {
+    transform: rotate(1.2deg);
+  }
+}
+
+.rail-drop {
+  animation: railDrop 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.rail-sway {
+  transform-origin: top center;
+  animation: railSway var(--rail-sway-duration, 8s) ease-in-out infinite;
+  animation-delay: var(--rail-sway-delay, 0s);
+  will-change: transform;
+}
+
+.rail-sway-tag {
+  transform-origin: top center;
+  animation: railSwayTag 5.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-drop,
+  .rail-sway,
+  .rail-sway-tag {
+    animation: none !important;
+  }
+}
