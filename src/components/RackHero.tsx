@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { getClothingProducts } from '../lib/catalog';
 import type { Product } from '../lib/supabase';
@@ -19,11 +19,21 @@ type RackItem = {
   image: string;
   /** Average fabric colour — used only for the soft glow behind the rack. */
   hex: string;
+  /** width / height of the cut-out. */
+  aspect: number;
 };
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 /** The cut-outs are all 520px tall; the rail shows them at this height. */
 const PIECE_HEIGHT = 'clamp(210px, 30vh, 300px)';
+/**
+ * The camera stands to the side of the rail: garments hang turned away from
+ * the viewer, so the rack reads as one dense row of narrow profiles. Hovering
+ * (or focusing) swings that one garment round to face you.
+ */
+const SIDE_ANGLE = 72;
+/** cos(72°) — the width a side-on garment still takes up on screen. */
+const SIDE_PROJECTION = Math.cos((SIDE_ANGLE * Math.PI) / 180);
 
 function withAlpha(hex: string, alpha: number): string {
   const value = hex.replace('#', '');
@@ -79,6 +89,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               name: product.name,
               image: garment.image,
               hex: garment.hex,
+              aspect: garment.aspect,
             } satisfies RackItem;
           })
           .filter((item): item is RackItem => item !== null);
@@ -159,27 +170,37 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           <ul
             ref={trackRef}
             aria-label="لباس‌های مُدارا روی رگال"
-            className="scrollbar-hide -mx-4 flex items-start gap-0 overflow-x-auto px-4 pb-2 pt-0 sm:mx-0 sm:px-0"
+            className="scrollbar-hide -mx-4 flex items-start gap-0 overflow-x-auto px-4 pb-2 pt-0 sm:mx-0 sm:px-0 [perspective:1400px] [perspective-origin:50%_22%]"
+            style={{ '--piece-h': PIECE_HEIGHT } as CSSProperties}
           >
             {loading &&
-              Array.from({ length: 12 }).map((_, index) => (
+              Array.from({ length: 17 }).map((_, index) => (
                 <li
                   key={`skeleton-${index}`}
                   aria-hidden="true"
-                  className="shrink-0 animate-pulse rounded-[16px] bg-[#ded6c8] first:ms-0 ms-[4px] sm:ms-[10px]"
-                  style={{ width: 'clamp(96px, 9vw, 150px)', height: PIECE_HEIGHT }}
+                  className="shrink-0 animate-pulse rounded-[10px] bg-[#ded6c8] first:ms-0 ms-[2px]"
+                  style={{
+                    width: `calc(var(--piece-h) * 0.75 * ${SIDE_PROJECTION} + 8px)`,
+                    height: PIECE_HEIGHT,
+                  }}
                 />
               ))}
 
             {!loading &&
               items.map((item, index) => {
                 const isActive = item.id === activeItem?.id;
+                /* the layout keeps the side-on footprint, so the row stays dense */
+                const slotWidth = `calc(var(--piece-h) * ${item.aspect} * ${SIDE_PROJECTION} + 10px)`;
 
                 return (
                   <li
                     key={item.id}
-                    className="relative shrink-0 first:ms-0 ms-[2px] sm:ms-[6px]"
-                    style={{ zIndex: isActive ? 30 : 1 }}
+                    className="relative shrink-0 first:ms-0"
+                    style={{
+                      width: slotWidth,
+                      height: PIECE_HEIGHT,
+                      zIndex: isActive ? 30 : 1,
+                    }}
                   >
                     <button
                       type="button"
@@ -191,31 +212,57 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                         setActiveId(item.id);
                         onNavigate('product', item.slug);
                       }}
-                      className="group/piece relative flex items-start outline-none"
+                      className="group/piece absolute inset-y-0 start-1/2 block -translate-x-1/2 outline-none"
+                      style={{ width: `calc(var(--piece-h) * ${item.aspect})` }}
                     >
                       {/* the only thing a hover adds: a soft glow behind the garment */}
                       <span
                         aria-hidden="true"
-                        className={`pointer-events-none absolute -inset-x-6 -top-4 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_32%,rgba(255,250,238,0.98),rgba(255,240,212,0.42)_56%,transparent_74%)] blur-md transition-opacity duration-500 ${
+                        className={`pointer-events-none absolute -inset-x-8 -top-4 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_32%,rgba(255,250,238,0.98),rgba(255,240,212,0.42)_56%,transparent_74%)] blur-md transition-opacity duration-500 ${
                           isActive ? 'opacity-100' : 'opacity-0'
                         }`}
                       />
 
-                      {/* the garment itself, on its wooden hanger, hung from the rail */}
-                      <img
-                        src={asset(item.image)}
-                        alt=""
-                        aria-hidden="true"
-                        loading={index < 12 ? 'eager' : 'lazy'}
-                        decoding="async"
-                        draggable={false}
-                        className={`w-auto max-w-none select-none object-contain object-top transition-[transform,filter,opacity] duration-500 ease-out ${
-                          isActive
-                            ? '-translate-y-[5px] opacity-100 drop-shadow-[0_30px_30px_rgba(56,42,22,0.3)]'
-                            : 'opacity-[0.96] drop-shadow-[0_18px_20px_rgba(56,42,22,0.2)] group-hover/piece:-translate-y-[3px] group-hover/piece:opacity-100'
-                        }`}
-                        style={{ height: PIECE_HEIGHT }}
-                      />
+                      {/* the garment itself, on its wooden hanger, seen from the side */}
+                      <span
+                        className="absolute inset-0 block transition-transform duration-500 ease-out"
+                        style={{
+                          transform: isActive
+                            ? 'rotateY(0deg) translateY(-5px)'
+                            : `rotateY(${SIDE_ANGLE}deg)`,
+                          transformOrigin: '50% 22%',
+                          transformStyle: 'preserve-3d',
+                          willChange: 'transform',
+                        }}
+                      >
+                        <img
+                          src={asset(item.image)}
+                          alt=""
+                          aria-hidden="true"
+                          loading={index < 17 ? 'eager' : 'lazy'}
+                          decoding="async"
+                          draggable={false}
+                          className={`h-full w-full select-none object-contain object-top transition-[filter,opacity] duration-500 ${
+                            isActive
+                              ? 'opacity-100 drop-shadow-[0_30px_30px_rgba(56,42,22,0.3)]'
+                              : 'opacity-[0.97] drop-shadow-[0_16px_18px_rgba(56,42,22,0.22)]'
+                          }`}
+                        />
+
+                        {/* a side-on garment is only lit at the edge nearest the light */}
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none absolute inset-0 transition-opacity duration-500 ${
+                            isActive ? 'opacity-0' : 'opacity-100'
+                          } bg-[linear-gradient(90deg,rgba(28,21,12,0.34)_0%,rgba(28,21,12,0.08)_16%,rgba(255,249,236,0.16)_72%,rgba(255,252,244,0.38)_100%)]`}
+                        />
+                        {!isActive && (
+                          <span
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-y-0 start-0 w-[3px] rounded-s-[2px] bg-[linear-gradient(90deg,rgba(24,17,8,0.5),transparent)]"
+                          />
+                        )}
+                      </span>
                     </button>
                   </li>
                 );
