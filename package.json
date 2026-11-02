@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "seed": "node scripts/generate-seed.mjs",
-    "images:optimize": "node scripts/optimize-images.mjs"
+    "images:optimize": "node scripts/optimize-images.mjs",
+    "images:rack": "node scripts/generate-rack-slices.mjs",
+    "images:palette": "node scripts/generate-product-palette.mjs"
   },
   "dependencies": {
     "@react-three/fiber": "^8.17.10",

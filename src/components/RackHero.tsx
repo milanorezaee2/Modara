@@ -11,7 +11,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles, Star } from 'lucide-react';
 import { getAllProducts, getCategories } from '../lib/catalog';
 import type { Category, Product } from '../lib/supabase';
-import { formatPrice, imageSrcSet, optimizedAsset } from '../lib/format';
+import { asset, formatPrice, imageSrcSet, optimizedAsset } from '../lib/format';
+import { toneFor } from '../lib/productPalette';
 
 type RackHeroProps = {
   onNavigate: (view: string, param?: string) => void;
@@ -20,7 +21,7 @@ type RackHeroProps = {
 const ALL = 'all';
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-/** Warm ambient light per department: the stage changes mood with the piece. */
+/** Warm ambient light per department, used only to frame the stage. */
 const CATEGORY_TINT: Record<string, string> = {
   clothing: 'rgba(178,132,62,0.22)',
   pants: 'rgba(96,112,92,0.22)',
@@ -30,8 +31,12 @@ const CATEGORY_TINT: Record<string, string> = {
   accessory: 'rgba(182,148,98,0.24)',
 };
 
-/** Clean, repeating silhouette rhythm — a curated rack, not a random one. */
-const HEIGHT_STEPS = [188, 208, 232, 214, 196, 226];
+/**
+ * Full-length pieces, like the reference rack: one repeating rhythm of six
+ * lengths so neighbours always differ, but the line still reads as curated.
+ */
+const HEIGHT_STEPS = [248, 312, 276, 330, 258, 296];
+const LIGHT_TONE = 55;
 
 function fa(number: number): string {
   return new Intl.NumberFormat('fa-IR').format(number);
@@ -44,6 +49,18 @@ function shortPrice(price: number): string {
   return nf.format(price);
 }
 
+/** Narrow, full-length garment band cut from the product photo (see scripts/). */
+function rackSlice(image: string | null | undefined): string {
+  if (!image) return '';
+  return image.replace(/^\/images\//, '/images/rack/').replace(/\.(jpe?g|png)$/i, '.webp');
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const value = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((offset) => parseInt(value.slice(offset, offset + 2), 16));
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 type RackGroup = {
   key: string;
   name: string;
@@ -51,13 +68,34 @@ type RackGroup = {
   products: Product[];
 };
 
+/**
+ * Curated order: inside a department the pieces alternate light/dark, exactly
+ * how a stylist spaces colour on a rail. Deterministic, so it never shuffles.
+ */
+function curate(products: Product[]): Product[] {
+  const light = products
+    .filter((product) => toneFor(product.image_url).l >= LIGHT_TONE)
+    .sort((a, b) => toneFor(b.image_url).l - toneFor(a.image_url).l);
+  const dark = products
+    .filter((product) => toneFor(product.image_url).l < LIGHT_TONE)
+    .sort((a, b) => toneFor(a.image_url).l - toneFor(b.image_url).l);
+
+  const ordered: Product[] = [];
+  while (light.length || dark.length) {
+    const nextLight = light.shift();
+    if (nextLight) ordered.push(nextLight);
+    const nextDark = dark.shift();
+    if (nextDark) ordered.push(nextDark);
+  }
+  return ordered;
+}
+
 /** Departments in catalogue order: a showroom, neatly separated. */
 function groupByDepartment(products: Product[], categories: Category[]): RackGroup[] {
-  const order = categories.map((category) => ({ slug: category.slug, name: category.name }));
-  const groups: RackGroup[] = order.map(({ slug, name }) => ({
-    key: slug,
-    slug,
-    name,
+  const groups: RackGroup[] = categories.map((category) => ({
+    key: category.slug,
+    slug: category.slug,
+    name: category.name,
     products: [],
   }));
   const bySlug = new Map(groups.map((group) => [group.slug, group]));
@@ -68,10 +106,13 @@ function groupByDepartment(products: Product[], categories: Category[]): RackGro
     const group = slug ? bySlug.get(slug) : undefined;
     if (group) group.products.push(product);
   }
-  return groups.filter((group) => group.products.length > 0);
+
+  return groups
+    .filter((group) => group.products.length > 0)
+    .map((group) => ({ ...group, products: curate(group.products) }));
 }
 
-/** The brass rail, drawn once and kept perfectly level above the pieces. */
+/** A thin brass rail across the stage, with wall plates at both ends. */
 function RailBar() {
   return (
     <div
@@ -83,6 +124,37 @@ function RailBar() {
       <span className="absolute -top-[3px] left-[1.5%] h-[22px] w-[5px] rounded-full bg-[linear-gradient(180deg,#f6ecd6,#a98c5c)] shadow-[0_2px_6px_rgba(72,52,26,0.2)]" />
       <span className="absolute -top-[3px] right-[1.5%] h-[22px] w-[5px] rounded-full bg-[linear-gradient(180deg,#f6ecd6,#a98c5c)] shadow-[0_2px_6px_rgba(72,52,26,0.2)]" />
     </div>
+  );
+}
+
+/** A wire hanger, drawn so every piece visibly hangs from the rail. */
+function Hanger({ active }: { active: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 48 22"
+      preserveAspectRatio="none"
+      className={`block h-[20px] w-full transition-colors duration-300 ${
+        active ? 'text-[#8a6a34]' : 'text-[#9d907c]'
+      }`}
+      aria-hidden="true"
+    >
+      {/* hook */}
+      <path
+        d="M24 6.2c0-2 .1-3.6 1.7-4.2 1.4-.5 2.6.4 2.6 1.7 0 1.4-1.2 2-2.4 1.7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      {/* shoulders */}
+      <path
+        d="M24 6.4 2.5 18.4M24 6.4 45.5 18.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -121,10 +193,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
     };
   }, []);
 
-  const allGroups = useMemo(
-    () => groupByDepartment(products, categories),
-    [products, categories],
-  );
+  const allGroups = useMemo(() => groupByDepartment(products, categories), [products, categories]);
 
   const groups = useMemo(
     () =>
@@ -147,13 +216,15 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
     );
   }, [visible]);
 
-  const activeProduct =
-    visible.find((product) => product.id === activeId) ?? visible[0] ?? null;
+  const activeProduct = visible.find((product) => product.id === activeId) ?? visible[0] ?? null;
   const activeIndex = activeProduct ? (indexById.get(activeProduct.id) ?? -1) : -1;
   const activeCategoryMeta = activeProduct
     ? categories.find((category) => category.id === activeProduct.category_id)
     : undefined;
-  const tint = CATEGORY_TINT[activeCategoryMeta?.slug ?? ''] ?? 'rgba(176,132,64,0.22)';
+  const activeTone = activeProduct ? toneFor(activeProduct.image_url) : null;
+  const tint = activeTone
+    ? withAlpha(activeTone.hex, 0.26)
+    : (CATEGORY_TINT[activeCategoryMeta?.slug ?? ''] ?? 'rgba(176,132,64,0.22)');
 
   const updateScrollHints = useCallback(() => {
     const track = trackRef.current;
@@ -249,7 +320,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
 
   return (
     <section
-      aria-label="رگال سه‌بعدی کالکشن مُدارا"
+      aria-label="رگال کالکشن مُدارا"
       className="relative isolate overflow-hidden bg-[#efeae1] pb-10 pt-24 sm:pt-28"
     >
       {/* Studio light */}
@@ -290,16 +361,16 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         >
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[10.5px] font-bold text-[#9a8358] sm:text-[11.5px]">
             <span className="h-px w-8 bg-[#bda77c] sm:w-12" aria-hidden="true" />
-            <span>رگال سه‌بعدی مُدارا</span>
+            <span>کالکشن پاییز مُدارا</span>
             <span className="h-1 w-1 rounded-full bg-[#c3ac81]" aria-hidden="true" />
             <span>{loading ? 'در حال چیدن…' : `${fa(products.length)} قطعه`}</span>
             <span className="h-px w-8 bg-[#bda77c] sm:w-12" aria-hidden="true" />
           </div>
 
           <h1 className="mt-5 text-balance text-[clamp(1.6rem,4.4vw,3.05rem)] font-extrabold leading-[1.3] text-[#241d14]">
-            تمامِ کالکشن، کنارِ هم روی یک رگال
+            همه‌ی کالکشن، آویزان روی یک رگال
             <span className="mt-1 block text-[#8b6f3e] sm:mt-2">
-              قطعه‌ها از بغل؛ هر کدام که جلو بیاید، کامل دیده می‌شود
+              لباس‌ها و شلوارها از بغل؛ هر قطعه که جلو بیاید، کامل دیده می‌شود
             </span>
           </h1>
         </motion.div>
@@ -342,7 +413,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               style={{ background: `radial-gradient(circle at 50% 58%, ${tint}, transparent 70%)` }}
             />
 
-            {/* Plate: a printed look-book page */}
             <div className="relative aspect-[4/5] w-full">
               <div className="absolute inset-0 overflow-hidden rounded-[22px] bg-[#e7e1d6] shadow-[0_44px_80px_-48px_rgba(45,33,18,0.75),0_2px_0_rgba(255,255,255,0.65)_inset] ring-1 ring-[#d6c9b1]">
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -365,7 +435,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                   )}
                 </AnimatePresence>
 
-                {/* inner frame + lens vignette */}
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-inset ring-white/25"
@@ -375,7 +444,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                   className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,rgba(255,255,255,0.28),transparent_55%,rgba(24,17,8,0.16))]"
                 />
 
-                {/* stage chrome */}
                 <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
                   <span className="rounded-full bg-[#fdfaf2]/92 px-2.5 py-1 text-[10px] font-bold text-[#54452f] shadow-[0_8px_18px_-12px_rgba(45,33,18,0.8)] backdrop-blur-sm">
                     {activeCategoryMeta?.name ?? 'کالکشن'}
@@ -387,7 +455,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                   )}
                 </div>
 
-                {/* corner ticks, like a print registration mark */}
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute bottom-3 left-3 h-3 w-3 border-b border-l border-[#fdfaf2]/70"
@@ -398,11 +465,14 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                 />
               </div>
 
-              {/* hang tag, pinned to the plate */}
               {activeProduct && (
                 <div className="absolute -bottom-4 -left-4 sm:-left-6">
                   <span className="inline-flex items-center gap-1.5 rounded-[7px] border border-[#a3783a] bg-[#fdfaf2] px-2.5 py-1.5 text-[11px] font-bold text-[#3f3527] shadow-[0_16px_26px_-16px_rgba(45,33,18,0.9)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#a3783a]" aria-hidden="true" />
+                    <span
+                      className="h-2 w-2 rounded-full ring-1 ring-black/10"
+                      style={{ backgroundColor: activeTone?.hex ?? '#a3783a' }}
+                      aria-hidden="true"
+                    />
                     {formatPrice(activeProduct.price)}
                   </span>
                 </div>
@@ -438,7 +508,10 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                     <div className="px-2 py-2.5">
                       <p className="text-[9.5px] font-semibold text-[#9a8f7c]">امتیاز</p>
                       <p className="mt-0.5 inline-flex items-center gap-1 text-[12px] font-bold text-[#3f3527]">
-                        <Star className="h-3 w-3 fill-[#c0913f] text-[#c0913f]" aria-hidden="true" />
+                        <Star
+                          className="h-3 w-3 fill-[#c0913f] text-[#c0913f]"
+                          aria-hidden="true"
+                        />
                         {fa(Number(activeProduct.rating.toFixed(1)))}
                       </p>
                     </div>
@@ -482,220 +555,220 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         </div>
 
         {/* ---------------- the rack ---------------- */}
-        <div className="relative mt-11 sm:mt-14">
+        <div className="relative mt-12 sm:mt-16">
           <RailBar />
 
-          {/* 3D stage: pieces recede from the piece in focus, and the rack re-curves as you move */}
+          {/* Every product hangs edge-on; the camera curves away from the piece in focus */}
           <div className="relative">
-            <div className="relative">
-              <ul
-                ref={trackRef}
-                aria-label="همهٔ محصولات روی رگال"
-                onKeyDown={onRackKeyDown}
-                className="scrollbar-hide -mx-4 flex snap-x snap-mandatory items-start gap-0 overflow-x-auto px-4 pb-6 pt-1 sm:mx-0 sm:px-0 [perspective:1100px] [perspective-origin:50%_16%]"
-                style={{ '--rack-w': 'clamp(38px, 4.4vw, 52px)' } as CSSProperties}
-              >
-                {loading &&
-                  Array.from({ length: 22 }).map((_, index) => (
-                    <li
-                      key={`skeleton-${index}`}
-                      aria-hidden="true"
-                      className="shrink-0 animate-pulse rounded-t-[10px] bg-[#ded6c8]"
-                      style={{
-                        width: 'var(--rack-w)',
-                        marginInlineStart: index === 0 ? 0 : 5,
-                        height: `${HEIGHT_STEPS[index % HEIGHT_STEPS.length]}px`,
-                      }}
-                    />
-                  ))}
+            <ul
+              ref={trackRef}
+              aria-label="همهٔ محصولات روی رگال"
+              onKeyDown={onRackKeyDown}
+              className="scrollbar-hide -mx-4 flex snap-x snap-mandatory items-start gap-0 overflow-x-auto px-4 pb-7 pt-1 sm:mx-0 sm:px-0 [perspective:1400px] [perspective-origin:50%_14%]"
+              style={{ '--rack-w': 'clamp(48px, 5.2vw, 64px)' } as CSSProperties}
+            >
+              {loading &&
+                Array.from({ length: 20 }).map((_, index) => (
+                  <li
+                    key={`skeleton-${index}`}
+                    aria-hidden="true"
+                    className="shrink-0 animate-pulse rounded-t-[12px] bg-[#ded6c8] first:ms-0 ms-[18px] sm:ms-[22px]"
+                    style={{
+                      width: 'var(--rack-w)',
+                      height: `${HEIGHT_STEPS[index % HEIGHT_STEPS.length]}px`,
+                    }}
+                  />
+                ))}
 
-                {!loading &&
-                  groups.map((group, groupIndex) => (
-                    <Fragment key={group.key}>
-                      {groups.length > 1 && (
-                        <li
-                          aria-hidden="true"
-                          className="relative z-10 ms-[10px] shrink-0 snap-start self-stretch first:ms-0"
-                        >
-                          <div className="flex h-full flex-col items-center pt-[9px]">
-                            <div className="flex w-max flex-col items-center rounded-[5px] border border-[#d3c3a4] bg-[#fdfaf2]/95 px-2 py-1 shadow-[0_10px_18px_-14px_rgba(45,33,18,0.85)]">
-                              <span className="text-[9.5px] font-bold leading-none text-[#54452f]">
-                                {group.name}
-                              </span>
-                              <span className="mt-0.5 text-[8.5px] font-semibold leading-none text-[#a99c86]">
-                                {fa(group.products.length)}
-                              </span>
-                            </div>
-                            <span className="mt-2 w-px flex-1 bg-[linear-gradient(180deg,rgba(177,148,106,0.5),rgba(177,148,106,0))]" />
+              {!loading &&
+                groups.map((group) => (
+                  <Fragment key={group.key}>
+                    {groups.length > 1 && (
+                      <li
+                        aria-hidden="true"
+                        className="relative z-10 ms-[18px] shrink-0 snap-start self-stretch first:ms-0"
+                      >
+                        <div className="flex h-full flex-col items-center pt-[9px]">
+                          <div className="flex w-max flex-col items-center rounded-[5px] border border-[#d3c3a4] bg-[#fdfaf2]/95 px-2 py-1 shadow-[0_10px_18px_-14px_rgba(45,33,18,0.85)]">
+                            <span className="text-[9.5px] font-bold leading-none text-[#54452f]">
+                              {group.name}
+                            </span>
+                            <span className="mt-0.5 text-[8.5px] font-semibold leading-none text-[#a99c86]">
+                              {fa(group.products.length)}
+                            </span>
                           </div>
-                        </li>
-                      )}
+                          <span className="mt-2 w-px flex-1 bg-[linear-gradient(180deg,rgba(177,148,106,0.5),rgba(177,148,106,0))]" />
+                        </div>
+                      </li>
+                    )}
 
-                      {group.products.map((product, groupProductIndex) => {
-                        const index = indexById.get(product.id) ?? groupProductIndex;
-                        const isActive = product.id === activeProduct?.id;
-                        const distance = index - activeIndex;
-                        const clamped = Math.max(-9, Math.min(9, distance));
-                        const rotate = clamped * 2.3;
-                        const depth = Math.min(72, Math.abs(distance) * 5.5);
-                        const height =
-                          HEIGHT_STEPS[(index + groupIndex) % HEIGHT_STEPS.length];
+                    {group.products.map((product, groupProductIndex) => {
+                      const index = indexById.get(product.id) ?? groupProductIndex;
+                      const isActive = product.id === activeProduct?.id;
+                      const tone = toneFor(product.image_url);
+                      const distance = index - activeIndex;
+                      const clamped = Math.max(-10, Math.min(10, distance));
+                      const rotate = clamped * 2.1;
+                      const depth = Math.min(66, Math.abs(distance) * 5);
+                      const height = HEIGHT_STEPS[index % HEIGHT_STEPS.length];
 
-                        const transform = isActive
-                          ? 'translateY(-9px) translateZ(36px)'
-                          : `rotateY(${rotate}deg) translateZ(${-depth}px)`;
-
-                        return (
-                          <li
-                            key={product.id}
-                            className="relative shrink-0 snap-center first:ms-0 ms-[2px] sm:ms-[5px]"
-                            style={
-                              {
-                                transform,
-                                transformOrigin: 'top center',
-                                transition: `transform 520ms cubic-bezier(0.22, 1, 0.36, 1)`,
-                                zIndex: isActive ? 30 : 1,
-                              } as CSSProperties
-                            }
+                      return (
+                        <li
+                          key={product.id}
+                          className="relative shrink-0 snap-center first:ms-0 ms-[18px] sm:ms-[22px]"
+                          style={
+                            {
+                              transform: isActive
+                                ? 'translateY(-10px) translateZ(40px)'
+                                : `rotateY(${rotate}deg) translateZ(${-depth}px)`,
+                              transformOrigin: 'top center',
+                              transition: 'transform 520ms cubic-bezier(0.22, 1, 0.36, 1)',
+                              zIndex: isActive ? 30 : 1,
+                            } as CSSProperties
+                          }
+                        >
+                          <button
+                            id={`rack-piece-${product.id}`}
+                            data-piece={product.id}
+                            type="button"
+                            aria-pressed={isActive}
+                            aria-label={`${product.name} — ${formatPrice(product.price)}`}
+                            onMouseEnter={() => setActiveId(product.id)}
+                            onFocus={() => setActiveId(product.id)}
+                            onClick={() => setActiveId(product.id)}
+                            className="group/sliver relative flex flex-col items-center outline-none"
                           >
-                            <button
-                              id={`rack-piece-${product.id}`}
-                              data-piece={product.id}
-                              type="button"
-                              aria-pressed={isActive}
-                              aria-label={`${product.name}، ${formatPrice(product.price)}`}
-                              onMouseEnter={() => setActiveId(product.id)}
-                              onFocus={() => setActiveId(product.id)}
-                              onClick={() => setActiveId(product.id)}
-                              className="group/sliver relative flex flex-col items-center outline-none"
+                            {/* spotlight behind the piece in focus */}
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute -inset-x-10 -top-4 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_30%,rgba(255,248,232,0.98),rgba(255,238,208,0.4)_55%,transparent_74%)] blur-md transition-opacity duration-500 ${
+                                isActive ? 'opacity-100' : 'opacity-0'
+                              }`}
+                            />
+
+                            <Hanger active={isActive} />
+
+                            {/* the piece: a full-length garment seen edge-on */}
+                            <span
+                              className={`relative block transition-[box-shadow,filter] duration-500 ${
+                                isActive
+                                  ? 'shadow-[-16px_30px_38px_-30px_rgba(45,33,18,0.95),0_0_0_1px_rgba(163,120,58,0.9)]'
+                                  : 'shadow-[-10px_18px_26px_-24px_rgba(45,33,18,0.85)]'
+                              }`}
+                              style={
+                                {
+                                  width: 'var(--rack-w)',
+                                  height: `clamp(180px, 26vh, ${height}px)`,
+                                  borderRadius: '14px 14px 7px 7px',
+                                } as CSSProperties
+                              }
                             >
-                              {/* focus glow behind the piece */}
                               <span
-                                aria-hidden="true"
-                                className={`pointer-events-none absolute -inset-x-8 -top-3 bottom-0 -z-10 rounded-[999px] bg-[radial-gradient(ellipse_at_50%_35%,rgba(255,246,228,0.95),rgba(255,236,204,0.35)_55%,transparent_72%)] blur-md transition-opacity duration-500 ${
-                                  isActive ? 'opacity-100' : 'opacity-0'
-                                }`}
-                              />
-
-                              {/* hanger hook, threaded onto the rail */}
-                              <span
-                                aria-hidden="true"
-                                className={`flex flex-col items-center transition-colors duration-300 ${
-                                  isActive ? 'text-[#8a6a34]' : 'text-[#a99a80]'
-                                }`}
+                                className="absolute inset-0 overflow-hidden"
+                                style={{ borderRadius: '14px 14px 7px 7px' }}
                               >
-                                <span className="h-[7px] w-[6px] rounded-full border border-current" />
-                                <span className="h-[7px] w-px bg-current" />
-                              </span>
+                                <img
+                                  src={asset(rackSlice(product.image_url))}
+                                  alt=""
+                                  aria-hidden="true"
+                                  loading={index < 26 ? 'eager' : 'lazy'}
+                                  decoding="async"
+                                  draggable={false}
+                                  className={`h-full w-full select-none object-cover transition-[filter,transform] duration-500 ${
+                                    isActive
+                                      ? 'scale-[1.03] saturate-100'
+                                      : 'saturate-[0.9] group-hover/sliver:saturate-100'
+                                  }`}
+                                  style={{ objectPosition: '50% 46%' }}
+                                />
 
-                              {/* the piece: an edge-on slice with real thickness */}
-                              <span
-                                className={`relative block rounded-t-[10px] transition-[box-shadow,filter] duration-500 ${
-                                  isActive
-                                    ? 'shadow-[-14px_26px_34px_-26px_rgba(45,33,18,0.95),0_0_0_1px_rgba(163,120,58,0.9)]'
-                                    : 'shadow-[-8px_16px_22px_-20px_rgba(45,33,18,0.8)]'
-                                }`}
-                                style={
-                                  {
-                                    '--rack-w': 'clamp(38px, 4.4vw, 52px)',
-                                    width: 'var(--rack-w)',
-                                    height: `${height}px`,
-                                  } as CSSProperties
-                                }
-                              >
-                                <span className="absolute inset-0 overflow-hidden rounded-t-[10px] bg-[#e3dbcd]">
-                                  <img
-                                    src={optimizedAsset(product.image_url, 160)}
-                                    alt=""
-                                    aria-hidden="true"
-                                    loading={index < 26 ? 'eager' : 'lazy'}
-                                    decoding="async"
-                                    draggable={false}
-                                    className={`h-full w-full select-none object-cover transition-[filter,transform] duration-500 ${
-                                      isActive
-                                        ? 'scale-[1.03] saturate-100'
-                                        : 'saturate-[0.88] group-hover/sliver:saturate-100'
-                                    }`}
-                                    style={{ objectPosition: '50% 32%' }}
-                                  />
-
-                                  {/* woven side-light: each sliver reads as the edge of a garment */}
-                                  <span
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,rgba(255,255,255,0.4)_0%,rgba(255,255,255,0.06)_26%,rgba(24,17,8,0.06)_62%,rgba(24,17,8,0.34)_100%)] mix-blend-soft-light"
-                                  />
-                                  {/* hem shadow, so the piece sits on the shelf */}
-                                  <span
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-[linear-gradient(0deg,rgba(30,22,12,0.28),transparent)]"
-                                  />
-                                  {/* fabric thickness on the receding edge */}
-                                  <span
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute inset-y-0 left-0 w-[6px] bg-[linear-gradient(90deg,rgba(36,29,20,0.42),rgba(36,29,20,0))]"
-                                  />
-                                  {/* top highlight where the hanger meets the cloth */}
-                                  <span
-                                    aria-hidden="true"
-                                    className="pointer-events-none absolute inset-x-0 top-0 h-[6px] bg-[linear-gradient(180deg,rgba(255,255,255,0.34),transparent)]"
-                                  />
-
-                                  {/* active marker */}
-                                  <span
-                                    aria-hidden="true"
-                                    className={`pointer-events-none absolute inset-x-0 bottom-0 transition-all duration-500 ${
-                                      isActive ? 'h-[3px] bg-[#a3783a]' : 'h-[2px] bg-[#241d14]/10'
-                                    }`}
-                                  />
-                                </span>
-
-                                {/* contact shadow on the shelf */}
+                                {/* woven light down the side: the garment has an edge */}
                                 <span
                                   aria-hidden="true"
-                                  className={`pointer-events-none absolute -bottom-[7px] left-1/2 h-[7px] -translate-x-1/2 rounded-full bg-[#241d14] blur-[4px] transition-all duration-500 ${
-                                    isActive ? 'w-[86%] opacity-40' : 'w-[62%] opacity-20'
+                                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(100deg,rgba(255,255,255,0.42)_0%,rgba(255,255,255,0.05)_28%,rgba(24,17,8,0.05)_64%,rgba(24,17,8,0.36)_100%)] mix-blend-soft-light"
+                                />
+                                {/* shoulder highlight where the hanger carries it */}
+                                <span
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-x-0 top-0 h-[14px] bg-[linear-gradient(180deg,rgba(255,255,255,0.5),rgba(255,255,255,0))]"
+                                />
+                                {/* hem shadow */}
+                                <span
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-[linear-gradient(0deg,rgba(28,21,12,0.3),transparent)]"
+                                />
+                                {/* fabric thickness on the receding edge */}
+                                <span
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-y-0 left-0 w-[7px] bg-[linear-gradient(90deg,rgba(36,29,20,0.45),rgba(36,29,20,0))]"
+                                />
+
+                                {/* the piece's own colour, as a selvedge line */}
+                                <span
+                                  aria-hidden="true"
+                                  className="pointer-events-none absolute inset-y-0 right-0 w-[3px] opacity-80"
+                                  style={{
+                                    background: `linear-gradient(180deg, ${tone.hex}, ${withAlpha(
+                                      tone.hex,
+                                      0.55,
+                                    )})`,
+                                  }}
+                                />
+
+                                <span
+                                  aria-hidden="true"
+                                  className={`pointer-events-none absolute inset-x-0 bottom-0 transition-all duration-500 ${
+                                    isActive ? 'h-[3px] bg-[#a3783a]' : 'h-[2px] bg-[#241d14]/10'
                                   }`}
                                 />
                               </span>
 
-                              {/* price whisper under the active piece */}
+                              {/* contact shadow on the shelf */}
                               <span
-                                className={`mt-2 hidden whitespace-nowrap text-[9px] font-bold transition-all duration-300 sm:block ${
-                                  isActive
-                                    ? 'translate-y-0 text-[#8b6f3e] opacity-100'
-                                    : 'translate-y-1 text-[#a99c86] opacity-0'
+                                aria-hidden="true"
+                                className={`pointer-events-none absolute -bottom-[7px] left-1/2 h-[7px] -translate-x-1/2 rounded-full bg-[#241d14] blur-[4px] transition-all duration-500 ${
+                                  isActive ? 'w-[88%] opacity-40' : 'w-[64%] opacity-20'
                                 }`}
-                              >
-                                {shortPrice(product.price)}
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </Fragment>
-                  ))}
-              </ul>
+                              />
+                            </span>
 
-              {/* shelf floor */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none -mt-6 h-12 bg-[linear-gradient(180deg,rgba(36,29,20,0.10),rgba(36,29,20,0.02)_38%,transparent)]"
-              />
+                            {/* price whisper under the active piece */}
+                            <span
+                              className={`mt-2 hidden whitespace-nowrap text-[9px] font-bold transition-all duration-300 sm:block ${
+                                isActive
+                                  ? 'translate-y-0 text-[#8b6f3e] opacity-100'
+                                  : 'translate-y-1 text-[#a99c86] opacity-0'
+                              }`}
+                            >
+                              {shortPrice(product.price)}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+            </ul>
 
-              {/* edge fades */}
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-y-0 right-0 w-14 bg-[linear-gradient(270deg,#efeae1,rgba(239,234,225,0))] transition-opacity duration-300 ${
-                  hasScrolled ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-y-0 left-0 w-14 bg-[linear-gradient(90deg,#efeae1,rgba(239,234,225,0))] transition-opacity duration-300 ${
-                  canScrollMore ? 'opacity-100' : 'opacity-0'
-                }`}
-              />
-            </div>
+            {/* shelf floor */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none -mt-6 h-12 bg-[linear-gradient(180deg,rgba(36,29,20,0.1),rgba(36,29,20,0.02)_38%,transparent)]"
+            />
+
+            {/* edge fades */}
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 right-0 w-14 bg-[linear-gradient(270deg,#efeae1,rgba(239,234,225,0))] transition-opacity duration-300 ${
+                hasScrolled ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-y-0 left-0 w-14 bg-[linear-gradient(90deg,#efeae1,rgba(239,234,225,0))] transition-opacity duration-300 ${
+                canScrollMore ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
           </div>
 
           {/* Rack controls */}
@@ -723,7 +796,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               </button>
             </div>
 
-            {/* position readout + progress, like a rack label */}
             <div className="flex min-w-[190px] flex-col items-center gap-1.5">
               <span className="text-[10.5px] font-semibold text-[#8d8271]">
                 {activeIndex >= 0
@@ -748,9 +820,12 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               هاور، لمس یا کلیدهای ← → قطعه را جلو می‌آورند
             </p>
           </div>
+
+          <p className="mx-auto mt-6 max-w-md text-center text-[12px] leading-6 text-[#6b6152]">
+            پارچه‌های تمام‌پشم، برشِ تیلور و دوختِ محدود؛ انتخاب‌شده برای پوشیدنِ هر روز.
+          </p>
         </div>
       </div>
     </section>
   );
 }
-
