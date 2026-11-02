@@ -88,6 +88,24 @@ export function getNewestProducts(limit: number): Promise<Product[]> {
  * The whole catalogue in one query — used by the home rack, which needs every
  * product at once (newest first). Cached like every other catalogue read.
  */
+/**
+ * The clothing line only — the home rack hangs nothing else. Filtered by the
+ * category slug so it works against both Supabase and the demo backend.
+ */
+export function getClothingProducts(): Promise<Product[]> {
+  return cachedQuery('products:clothing', async () => {
+    const categories = await getCategories();
+    const clothing = categories.find((category) => category.slug === 'clothing');
+    const categoryId = clothing?.id ?? 'cat-clothing';
+    const { data } = await supabase
+      .from('products')
+      .select(PRODUCT_CARD_COLUMNS)
+      .eq('category_id', categoryId)
+      .order('created_at', { ascending: false });
+    return (data ?? []) as Product[];
+  });
+}
+
 export function getAllProducts(): Promise<Product[]> {
   return cachedQuery('products:all', async () => {
     const { data } = await supabase
