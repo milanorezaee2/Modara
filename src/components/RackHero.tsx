@@ -18,8 +18,6 @@ type RackItem = {
   name: string;
   /** What hangs on the rail: the profile when it has been shot. */
   image: string;
-  /** How much of the garment is turned away from the camera (0 = front). */
-  angle: number;
   /** Average fabric colour — used only for the glow behind the rack. */
   hex: string;
   /** width / height of `image`. */
@@ -29,8 +27,6 @@ type RackItem = {
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const PIECE_HEIGHT = 'clamp(200px, 27vh, 288px)';
 const PIECE_GAP = 4;
-/** Garments without a profile photo are turned this far on the rail. */
-const TURNED_ANGLE = 62;
 
 export default function RackHero({ onNavigate }: RackHeroProps) {
   const reduceMotion = useReducedMotion();
@@ -40,7 +36,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hasScrolled, setHasScrolled] = useState(false);
   const [canScrollMore, setCanScrollMore] = useState(false);
-  const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false, lastX: 0 });
+  const drag = useRef({ active: false, startX: 0, startLeft: 0, moved: false });
   const suppressClick = useRef(false);
 
   useEffect(() => {
@@ -52,25 +48,21 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
     getClothingProducts()
       .then((products: Product[]) => {
         if (cancelled) return;
-        /** Profiles first: they are the pieces that read as a packed rail. */
+        /* Every piece hangs as its real profile — nothing is faked by rotation. */
         const hanging = products
           .map((product) => {
-            const profile = sideFor(product.slug);
-            const front = hangerFor(product.slug);
-            const garment = profile ?? front;
+            const garment = sideFor(product.slug) ?? hangerFor(product.slug);
             if (!garment) return null;
             return {
               id: product.id,
               slug: product.slug,
               name: product.name,
               image: garment.image,
-              angle: profile ? 0 : TURNED_ANGLE,
               hex: garment.hex,
               aspect: garment.aspect,
             } satisfies RackItem;
           })
-          .filter((item): item is RackItem => item !== null)
-          .sort((a, b) => Number(a.angle > 0) - Number(b.angle > 0));
+          .filter((item): item is RackItem => item !== null);
         setItems(hanging);
         setActiveId((current) => current ?? hanging[0]?.id ?? null);
       })
@@ -179,7 +171,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
       startX: event.clientX,
       startLeft: track.scrollLeft,
       moved: false,
-      lastX: event.clientX,
     };
   };
 
@@ -189,18 +180,12 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
     const delta = event.clientX - drag.current.startX;
     if (Math.abs(delta) > 4) drag.current.moved = true;
     track.scrollLeft = drag.current.startLeft - delta;
-
-    const velocity = event.clientX - drag.current.lastX;
-    drag.current.lastX = event.clientX;
-    const lean = Math.max(-3, Math.min(3, velocity * 0.4));
-    track.style.setProperty('--rack-lean', `${lean.toFixed(2)}deg`);
   };
 
   const onPointerUp = () => {
     if (!drag.current.active) return;
     suppressClick.current = drag.current.moved;
     drag.current.active = false;
-    trackRef.current?.style.setProperty('--rack-lean', '0deg');
   };
 
   return (
@@ -255,13 +240,13 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           <h1 className="mt-5 text-balance text-[clamp(1.6rem,4.4vw,3.05rem)] font-extrabold leading-[1.3] text-[#241d14]">
             همه‌ی لباس‌ها، از بغل روی یک رگال
             <span className="mt-1 block text-[#8b6f3e] sm:mt-2">
-              همان‌طور که در بوتیک چیده می‌شوند؛ هر قطعه که جلو بیاید، کامل دیده می‌شود
+              همان‌طور که در بوتیک چیده می‌شوند؛ هر قطعه که جلو بیاید، کمی از ریل بلند می‌شود
             </span>
           </h1>
 
           <p className="mx-auto mt-4 max-w-xl text-balance text-[13px] leading-6 text-[#6b6152] sm:text-sm sm:leading-7">
-            کت، ترنچ‌کت، هودی و بافت‌ها؛ تکیه‌داده به هم روی ریل، با همان فرمی که پارچه روی
-            جالباسی می‌افتد. روی هر لباس بایستید تا رو به شما برگردد.
+            کت، ترنچ‌کت، هودی و بافت‌ها؛ عکسِ واقعیِ هر لباس در حالت آویزان و از بغل، همان‌طور
+            که پارچه روی جالباسی می‌افتد. روی هر قطعه بایستید تا بزرگ‌تر و روشن‌تر شود.
           </p>
         </motion.div>
 
@@ -293,7 +278,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
               event.preventDefault();
               event.stopPropagation();
             }}
-            className="scrollbar-hide -mx-4 flex cursor-grab select-none items-start overflow-x-auto px-4 pb-2 pt-0 active:cursor-grabbing sm:mx-0 sm:px-0 [perspective:1600px] [perspective-origin:50%_18%]"
+            className="scrollbar-hide -mx-4 flex cursor-grab select-none items-start overflow-x-auto px-4 pb-2 pt-0 active:cursor-grabbing sm:mx-0 sm:px-0"
             style={{ '--piece-h': PIECE_HEIGHT } as CSSProperties}
           >
             {loading &&
@@ -313,7 +298,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             {!loading &&
               items.map((item, index) => {
                 const isActive = item.id === activeItem?.id;
-                const slotWidth = `calc(var(--piece-h) * ${(item.aspect * Math.cos((item.angle * Math.PI) / 180)).toFixed(3)} + 8px)`;
+                const slotWidth = `calc(var(--piece-h) * ${item.aspect} + 8px)`;
 
                 return (
                   <li
@@ -326,9 +311,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                       marginInlineStart: index === 0 ? 0 : PIECE_GAP,
                       animationDelay: `${index * 65}ms`,
                       zIndex: isActive ? 30 : 1,
-                      transform: 'rotate(var(--rack-lean, 0deg))',
-                      transformOrigin: 'top center',
-                      transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   >
                     <button
@@ -363,15 +345,9 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                         }
                       >
                         <span
-                          className="absolute inset-0 block transition-transform duration-500 ease-out"
-                          style={{
-                            transform: isActive
-                              ? 'rotateY(0deg) translateY(-6px) scale(1.03)'
-                              : `rotateY(${item.angle}deg)`,
-                            transformOrigin: '50% 20%',
-                            transformStyle: 'preserve-3d',
-                            willChange: 'transform',
-                          }}
+                          className={`absolute inset-0 block origin-top transition-transform duration-500 ease-out ${
+                            isActive ? '-translate-y-1.5 scale-[1.03]' : ''
+                          }`}
                         >
                           <img
                             src={asset(item.image)}
@@ -386,15 +362,6 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                                 : 'drop-shadow-[0_16px_18px_rgba(56,42,22,0.2)]'
                             }`}
                           />
-                          {/* pieces that are only turned (no profile photo) get edge light */}
-                          {item.angle > 0 && (
-                            <span
-                              aria-hidden="true"
-                              className={`pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(28,21,12,0.3)_0%,rgba(28,21,12,0.06)_18%,rgba(255,249,236,0.14)_74%,rgba(255,252,244,0.34)_100%)] transition-opacity duration-500 ${
-                                isActive ? 'opacity-0' : 'opacity-100'
-                              }`}
-                            />
-                          )}
                         </span>
                       </span>
                     </button>

@@ -38,19 +38,26 @@ export const hangerGarments: Record<string, HangerGarment> = {
 
 /**
  * Side profiles: the same garments photographed hanging in profile, exactly
- * how they read on a packed rail. Only these are shown edge-on; the rest keep
- * their front cut-out until their profile is shot.
+ * how they read on a packed rail. All 17 clothing pieces have one.
  */
 export const sideGarments: Record<string, HangerGarment> = {
-  'denim-jacket-men': { image: '/images/hangers-side/denim-jacket-men.webp', hex: '#2a3440', aspect: 0.294 },
-  'hoodie-blush-women': { image: '/images/hangers-side/hoodie-blush-women.webp', hex: '#d9c0b9', aspect: 0.313 },
-  'hoodie-charcoal-men': { image: '/images/hangers-side/hoodie-charcoal-men.webp', hex: '#494848', aspect: 0.29 },
-  'knit-sweater-gray-men': { image: '/images/hangers-side/knit-sweater-gray-men.webp', hex: '#9f9d99', aspect: 0.212 },
-  'midi-dress-floral-women': { image: '/images/hangers-side/midi-dress-floral-women.webp', hex: '#adafa4', aspect: 0.208 },
-  'satin-blazer-black-women': { image: '/images/hangers-side/satin-blazer-black-women.webp', hex: '#2b2b2b', aspect: 0.273 },
-  'silk-blouse-cream-women': { image: '/images/hangers-side/silk-blouse-cream-women.webp', hex: '#d3c9b4', aspect: 0.279 },
-  'trench-coat-camel-women': { image: '/images/hangers-side/trench-coat-camel-women.webp', hex: '#bda992', aspect: 0.225 },
   'wool-blazer-navy-men': { image: '/images/hangers-side/wool-blazer-navy-men.webp', hex: '#222635', aspect: 0.248 },
+  'trench-coat-camel-women': { image: '/images/hangers-side/trench-coat-camel-women.webp', hex: '#bda992', aspect: 0.225 },
+  'satin-blazer-black-women': { image: '/images/hangers-side/satin-blazer-black-women.webp', hex: '#2b2b2b', aspect: 0.273 },
+  'denim-jacket-men': { image: '/images/hangers-side/denim-jacket-men.webp', hex: '#2a3440', aspect: 0.294 },
+  'midi-dress-floral-women': { image: '/images/hangers-side/midi-dress-floral-women.webp', hex: '#adafa4', aspect: 0.208 },
+  'knit-cardigan-cream-women': { image: '/images/hangers-side/knit-cardigan-cream-women.webp', hex: '#dfd8c7', aspect: 0.2 },
+  'silk-blouse-cream-women': { image: '/images/hangers-side/silk-blouse-cream-women.webp', hex: '#d3c9b4', aspect: 0.279 },
+  'hoodie-charcoal-men': { image: '/images/hangers-side/hoodie-charcoal-men.webp', hex: '#494848', aspect: 0.29 },
+  'hoodie-blush-women': { image: '/images/hangers-side/hoodie-blush-women.webp', hex: '#d9c0b9', aspect: 0.313 },
+  'knit-sweater-gray-men': { image: '/images/hangers-side/knit-sweater-gray-men.webp', hex: '#9f9d99', aspect: 0.212 },
+  'turtleneck-sweater-beige-women': { image: '/images/hangers-side/turtleneck-sweater-beige-women.webp', hex: '#c8b5a1', aspect: 0.233 },
+  'elegant-pink-blouse': { image: '/images/hangers-side/elegant-pink-blouse.webp', hex: '#ccb4ad', aspect: 0.258 },
+  'oxford-blue-shirt-men': { image: '/images/hangers-side/oxford-blue-shirt-men.webp', hex: '#adbfd7', aspect: 0.273 },
+  'classic-white-shirt': { image: '/images/hangers-side/classic-white-shirt.webp', hex: '#c6c5c5', aspect: 0.262 },
+  'polo-shirt-green-men': { image: '/images/hangers-side/polo-shirt-green-men.webp', hex: '#545335', aspect: 0.237 },
+  'oversize-tshirt-white-women': { image: '/images/hangers-side/oversize-tshirt-white-women.webp', hex: '#cfcecd', aspect: 0.262 },
+  'basic-tshirt-black-men': { image: '/images/hangers-side/basic-tshirt-black-men.webp', hex: '#1a1a1a', aspect: 0.456 },
 };
 
 /** The profile of a garment, when one has been shot. */
