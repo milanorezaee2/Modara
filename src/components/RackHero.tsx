@@ -34,7 +34,7 @@ const PIECE_GAP = 6;
 /** Never shrink a piece below this; below it the row scrolls instead. */
 const MIN_PIECE_HEIGHT = 104;
 /** And never let a short catalogue stretch them into giants. */
-const MAX_PIECE_HEIGHT = 300;
+const MAX_PIECE_HEIGHT = 220;
 
 export default function RackHero({ onNavigate }: RackHeroProps) {
   const reduceMotion = useReducedMotion();
@@ -233,7 +233,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
   return (
     <section
       aria-label="رگال لباس مُدارا"
-      className="relative isolate overflow-hidden bg-[#efeae1] pb-12 pt-24 sm:pb-16 sm:pt-28"
+      className="relative isolate overflow-hidden bg-[#efeae1] pb-8 pt-16 sm:pb-10 sm:pt-20"
     >
       {/* Studio light */}
       <div
@@ -292,78 +292,75 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             />
           </div>
 
-          <h1 className="mt-6 text-balance text-[clamp(1.55rem,3.9vw,2.85rem)] font-extrabold leading-[1.32] text-[#241d14]">
+          <h1 className="mt-4 text-balance text-[clamp(1.45rem,3.5vw,2.5rem)] font-extrabold leading-[1.28] text-[#241d14]">
             همه‌ی لباس‌ها، از بغل، روی یک رگال
           </h1>
 
-          <p className="mt-3 text-balance text-[clamp(0.9rem,1.5vw,1.1rem)] font-bold leading-relaxed text-[#8b6f3e]">
+          <p className="mt-2 text-balance text-[clamp(0.9rem,1.5vw,1.05rem)] font-bold leading-relaxed text-[#8b6f3e]">
             همان‌طور که در بوتیک چیده می‌شوند
           </p>
 
-          <p className="mt-5 max-w-[36rem] text-balance text-[12.5px] leading-6 text-[#6b6152] sm:text-[13px] sm:leading-7">
+          <p className="mt-3 max-w-[36rem] text-balance text-[12px] leading-[1.65] text-[#6b6152] sm:text-[12.5px]">
             کت، ترنچ‌کت، هودی و بافت‌ها؛ عکسِ واقعیِ هر لباس در حالت آویزان و از بغل، همان‌طور
             که پارچه روی جالباسی می‌افتد. هر قطعه که جلو بیاید کمی از ریل بلند می‌شود، و
             پارچه‌های تمام‌پشم با برشِ تیلور و دوختِ محدود، انتخاب‌شده برای پوشیدنِ هر روز.
           </p>
 
           {/* a quiet rule that closes the title block and opens the card */}
-          <div aria-hidden="true" className="mt-8 flex w-full items-center gap-3">
+          <div aria-hidden="true" className="mt-5 flex w-full items-center gap-3">
             <span className="h-px flex-1 bg-[linear-gradient(90deg,rgba(207,189,160,0),#cfbda0)]" />
             <span className="h-1.5 w-1.5 rotate-45 bg-[#bda77c]" />
             <span className="h-px flex-1 bg-[linear-gradient(270deg,rgba(207,189,160,0),#cfbda0)]" />
           </div>
         </motion.div>
 
-        {/* Product card: the piece you are on, with its full details */}
-        <div className="relative mx-auto mt-6 w-full max-w-3xl sm:mt-7 sm:min-h-[262px]">
-          {/* the outgoing card leaves the flow, so the rail never jumps */}
+        {/* Compact product card: clear image, title, details, and one action */}
+        <div className="relative mx-auto mt-4 w-full max-w-[700px]">
           <AnimatePresence mode="popLayout" initial={false}>
             {activeItem && (
               <motion.article
                 key={activeItem.id}
-                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, y: -6 }}
-                transition={{ duration: 0.4, ease: EASE }}
-                className="relative overflow-hidden rounded-[20px] border border-[#d9cdb6] bg-[#fdfaf4]/80 shadow-[0_26px_50px_-38px_rgba(45,33,18,0.6)] backdrop-blur-sm"
+                exit={reduceMotion ? undefined : { opacity: 0, y: -5 }}
+                transition={{ duration: 0.35, ease: EASE }}
+                className="relative overflow-hidden rounded-2xl border border-[#d9cdb6] bg-[#fdfaf4] shadow-[0_16px_36px_-28px_rgba(45,33,18,0.55)]"
                 aria-live="polite"
               >
-                <div className="grid gap-0 sm:grid-cols-[268px_minmax(0,1fr)]">
-                  {/* phone: the product photo as a wide crop above the details */}
-                  <div className="relative h-44 w-full sm:hidden">
+                <div className="grid md:grid-cols-[260px_minmax(0,1fr)]">
+                  <div className="relative h-32 overflow-hidden bg-[#e9e2d6] md:hidden">
                     <img
                       src={optimizedAsset(activeItem.product.image_url, 480)}
                       srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
-                      sizes="(min-width: 640px) 268px, 100vw"
+                      sizes="(min-width: 768px) 260px, 100vw"
                       alt={activeItem.product.name}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover object-[center_38%]"
                       decoding="async"
                     />
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(253,250,244,0.15),rgba(253,250,244,0.95))]"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#fdfaf4]/50 to-transparent"
                     />
                   </div>
 
-                  {/* the product photo, as sold */}
-                  <div className="relative hidden sm:block">
+                  <div className="relative hidden min-h-[196px] overflow-hidden bg-[#e9e2d6] md:block">
                     <img
-                      src={optimizedAsset(activeItem.product.image_url, 480)}
+                      src={optimizedAsset(activeItem.product.image_url, 720)}
                       srcSet={imageSrcSet(activeItem.product.image_url, [480, 720])}
-                      sizes="268px"
+                      sizes="260px"
                       alt={activeItem.product.name}
-                      className="h-full min-h-[260px] w-full object-cover"
+                      className="absolute inset-0 h-full w-full object-cover object-[center_38%]"
                       decoding="async"
                     />
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 bg-[linear-gradient(270deg,rgba(253,250,244,0.9),rgba(253,250,244,0)_38%)]"
+                      className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#fdfaf4]/25 via-transparent to-transparent"
                     />
                   </div>
 
-                  <div className="flex flex-col justify-center p-3.5 text-center sm:p-4 sm:text-right">
-                    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-between">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f2e9d8] px-2.5 py-1 text-[10px] font-bold text-[#7d6636]">
+                  <div className="flex min-w-0 flex-col p-3.5 text-right sm:p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#f2e9d8] px-2.5 py-1 text-[10px] font-bold text-[#7d6636]">
                         <span
                           className="h-1.5 w-1.5 rounded-full ring-1 ring-black/10"
                           style={{ backgroundColor: activeItem.hex }}
@@ -371,17 +368,23 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                         />
                         {activeItem.categoryName}
                       </span>
-                      <span className="text-[10.5px] font-bold tabular-nums text-[#9a8f7c]">
-                        قطعهٔ {new Intl.NumberFormat('fa-IR').format(activeIndex + 1)} از{' '}
+                      <span className="text-[10px] font-semibold tabular-nums text-[#9a8f7c]">
+                        {new Intl.NumberFormat('fa-IR').format(activeIndex + 1)} /{' '}
                         {new Intl.NumberFormat('fa-IR').format(items.length)}
                       </span>
                     </div>
 
-                    <h2 className="mt-2 text-balance text-[clamp(1rem,2vw,1.35rem)] font-bold leading-snug text-[#241d14]">
+                    <h2 className="mt-2 text-balance text-[clamp(1rem,1.8vw,1.25rem)] font-bold leading-snug text-[#241d14]">
                       {activeItem.product.name}
                     </h2>
 
-                    <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[11px] sm:justify-start">
+                    {activeItem.product.description && (
+                      <p className="mt-1 line-clamp-2 text-[11px] leading-[1.65] text-[#6b6152]">
+                        {activeItem.product.description}
+                      </p>
+                    )}
+
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px]">
                       <span className="inline-flex items-center gap-1 font-bold text-[#3f3527]">
                         <Star className="h-3.5 w-3.5 fill-[#c0913f] text-[#c0913f]" aria-hidden="true" />
                         {new Intl.NumberFormat('fa-IR').format(
@@ -394,30 +397,24 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
                           ? `${new Intl.NumberFormat('fa-IR').format(activeItem.product.stock)} عدد موجود`
                           : 'ناموجود'}
                       </span>
-                      <span className="h-3 w-px bg-[#d9cdb6]" aria-hidden="true" />
-                      <span className="inline-flex items-center gap-1.5 rounded-[6px] border border-[#a3783a]/60 bg-[#fdfaf2] px-2 py-0.5 font-bold text-[#3f3527]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#a3783a]" aria-hidden="true" />
-                        {formatPrice(activeItem.product.price)}
-                      </span>
                     </div>
 
-                    {activeItem.product.description && (
-                      <p className="mx-auto mt-2 line-clamp-2 min-h-[2.5rem] max-w-xl text-[11.5px] leading-5 text-[#6b6152] sm:mx-0">
-                        {activeItem.product.description}
-                      </p>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('product', activeItem.slug)}
-                      className="group mt-3 inline-flex items-center justify-center gap-2 self-center rounded-full bg-[#241d14] px-5 py-2.5 text-[12.5px] font-semibold text-[#f7f1e4] shadow-[0_16px_30px_-18px_rgba(36,29,20,0.9)] transition-all duration-300 hover:bg-[#3a2f20] active:scale-[0.98] sm:self-start"
-                    >
-                      مشاهدهٔ محصول
-                      <ArrowLeft
-                        className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1"
-                        aria-hidden="true"
-                      />
-                    </button>
+                    <div className="mt-auto flex items-center justify-between gap-2 border-t border-[#e7dece] pt-2.5">
+                      <span className="whitespace-nowrap text-[11px] font-extrabold text-[#3f3527]">
+                        {formatPrice(activeItem.product.price)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('product', activeItem.slug)}
+                        className="group inline-flex items-center justify-center gap-1.5 rounded-full bg-[#241d14] px-3.5 py-2 text-[11px] font-semibold text-[#f7f1e4] transition-colors hover:bg-[#3a2f20] active:scale-[0.98]"
+                      >
+                        مشاهدهٔ محصول
+                        <ArrowLeft
+                          className="h-3.5 w-3.5 transition-transform duration-300 group-hover:-translate-x-1"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.article>
@@ -426,7 +423,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
         </div>
 
         {/* The rail, and the garments on it */}
-        <div className="relative mt-9 sm:mt-10">
+        <div className="relative mt-5 sm:mt-6">
           <div
             className="pointer-events-none absolute inset-x-0 top-[6px] z-20 h-[16px]"
             aria-hidden="true"
@@ -564,7 +561,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
           />
 
           {/* the rail\'s meter: one quiet, symmetric line under the pieces */}
-          <div className="mx-auto mt-4 flex w-full max-w-3xl items-center gap-3 sm:mt-5">
+          <div className="mx-auto mt-2.5 flex w-full max-w-3xl items-center gap-3 sm:mt-3">
             <span
               aria-hidden="true"
               className="w-5 shrink-0 text-center text-[9.5px] font-bold tabular-nums text-[#a99c86]"
@@ -598,7 +595,7 @@ export default function RackHero({ onNavigate }: RackHeroProps) {
             </span>
           </div>
 
-          <p className="mx-auto mt-3 hidden max-w-md text-center text-[10.5px] text-[#a99c86] sm:block">
+          <p className="mx-auto mt-2 hidden max-w-md text-center text-[10px] text-[#a99c86] sm:block">
             هاور، یا کلیدهای ← →، قطعه را جلو می‌آورند
           </p>
 
