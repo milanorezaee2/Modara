@@ -8,10 +8,17 @@ import {
 } from '../lib/catalog';
 import { imageSrcSet, optimizedAsset } from '../lib/format';
 import ProductCard from '../components/ProductCard';
-import RackHero from '../components/RackHero';
+import HeroPoster from '../components/HeroPoster';
 import TrustMarquee from '../components/home/TrustMarquee';
 import DeferredMount from '../components/DeferredMount';
 
+const Hero3D = lazy(() => import('../components/Hero3D'));
+const RackHero = lazy(() => import('../components/RackHero'));
+
+/** Escape hatch: `?hero=classic` renders the previous flat hero. */
+const useClassicHero =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('hero') === 'classic';
 const EditorialCollections = lazy(() => import('../components/home/EditorialCollections'));
 const NewArrivals = lazy(() => import('../components/home/NewArrivals'));
 const BrandStory = lazy(() => import('../components/home/BrandStory'));
@@ -166,8 +173,14 @@ export default function Home({ onNavigate }: HomeProps) {
 
   return (
     <div>
-      {/* Rack hero: the whole catalogue, edge-on, with a full stage on hover */}
-      <RackHero onNavigate={onNavigate} />
+      {/* 3D vitrine hero: six real catalogue pieces on a lit stage */}
+      <Suspense fallback={<HeroPoster />}>
+        {useClassicHero ? (
+          <RackHero onNavigate={onNavigate} />
+        ) : (
+          <Hero3D onNavigate={onNavigate} />
+        )}
+      </Suspense>
 
       {/* Trust marquee */}
       <TrustMarquee />
